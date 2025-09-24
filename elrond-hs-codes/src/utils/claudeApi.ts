@@ -21,16 +21,14 @@ export interface ClaudeQuestionGenerationResponse {
 }
 
 export interface ClaudeAnalysisRequest {
-    // Base questions
+    // Base questions (3)
     productType: string;
-    materials: string | string[];
     function: string;
-    targetAudience: string;
     origin: string;
 
-    // Claude-generated questions
-    technicalSpecs: string;
-    regulatoryRequirements: string;
+    // Claude-generated questions (2)
+    materials: string | string[];
+    targetAudience: string;
 
     // Additional context
     timestamp: string;
@@ -52,39 +50,44 @@ export interface ClaudeAnalysisResponse {
 }
 
 // Claude API configuration
-const CLAUDE_API_BASE_URL = process.env.REACT_APP_CLAUDE_API_URL || 'https://api.anthropic.com/v1';
-const CLAUDE_API_KEY = process.env.REACT_APP_CLAUDE_API_KEY;
+const CLAUDE_API_BASE_URL = 'https://api.anthropic.com/v1';
 
 // Question generation prompt template
 const QUESTION_GENERATION_PROMPT = `
-You are an expert in HS code classification. Based on the following product information, generate 2 additional questions that would help determine the most accurate HS code classification.
+You are an expert in HS code classification. Based on the following product information, generate 2 highly specific and contextual questions that would help determine the most accurate HS code classification.
 
 Product Information:
 - Type: {productType}
-- Materials: {materials}
 - Function: {function}
-- Target Audience: {targetAudience}
 - Origin: {origin}
 
-Generate 2 specific questions that would help clarify:
-1. Technical specifications or features important for classification
-2. Regulatory requirements or certifications that apply
+Generate 2 personalized questions that are specifically relevant to this product type and function. The questions should help narrow down the exact HS code classification. Consider:
+
+1. For the first question: Ask about specific technical details, materials, or features that are crucial for classifying this particular type of product
+2. For the second question: Ask about usage context, target market, or regulatory aspects specific to this product
+
+Make the questions very specific to the product type and function provided. For example:
+- If it's an electronic device, ask about technical specifications
+- If it's clothing, ask about fabric composition and style
+- If it's food, ask about processing method and packaging
+- If it's machinery, ask about power source and application
 
 Return the questions in JSON format with this structure:
 {
   "questions": [
     {
       "id": "claude_question_1",
-      "text": "Question text here",
-      "type": "text",
+      "text": "Specific question tailored to this product type",
+      "type": "text|single|multiple",
+      "options": ["Option 1", "Option 2", "Option 3"] (only if type is single or multiple),
       "required": true,
       "category": "claude_generated"
     },
     {
       "id": "claude_question_2", 
-      "text": "Question text here",
-      "type": "single",
-      "options": ["Option 1", "Option 2", "Option 3"],
+      "text": "Another specific question tailored to this product type",
+      "type": "text|single|multiple",
+      "options": ["Option 1", "Option 2", "Option 3"] (only if type is single or multiple),
       "required": true,
       "category": "claude_generated"
     }
@@ -98,26 +101,32 @@ You are an expert in HS code classification. Analyze the following product infor
 
 Product Information:
 - Type: {productType}
-- Materials: {materials}
 - Function: {function}
-- Target Audience: {targetAudience}
 - Origin: {origin}
-- Technical Specifications: {technicalSpecs}
-- Regulatory Requirements: {regulatoryRequirements}
+- Contextual Details: {materials}
+- Usage Context: {targetAudience}
+
+Based on this specific product type and function, along with the contextual details provided, determine the most accurate HS code classification. Consider:
+
+1. The specific product type and its typical classification patterns
+2. The function/purpose and how it affects classification
+3. The contextual details (materials, technical specs, etc.) and their impact on classification
+4. The usage context and target audience and how they influence the HS code
+5. The country of origin and any relevant trade considerations
 
 Provide your analysis in JSON format with this structure:
 {
   "code": "XXXX.XX.XX",
   "description": "Detailed description of the classification",
   "confidence": 0.95,
-  "reasoning": "Detailed explanation of why this classification is correct",
+  "reasoning": "Detailed explanation of why this classification is correct, referencing the specific product type, function, and contextual details provided",
   "category": "Product Category",
   "alternativeCodes": [
     {
       "code": "XXXX.XX.XX",
       "description": "Alternative classification",
       "confidence": 0.85,
-      "reasoning": "Why this is an alternative"
+      "reasoning": "Why this is an alternative and when it might apply"
     }
   ]
 }
@@ -126,15 +135,15 @@ Provide your analysis in JSON format with this structure:
 export const generateQuestionsWithClaude = async (
     request: ClaudeQuestionGenerationRequest
 ): Promise<ClaudeQuestionGenerationResponse> => {
-    if (!CLAUDE_API_KEY) {
+    // Check if API key is available (this would be set via environment variable in production)
+    const apiKey = undefined; // In production: process.env.REACT_APP_CLAUDE_API_KEY
+    if (!apiKey) {
         throw new Error('Claude API key not configured');
     }
 
     const prompt = QUESTION_GENERATION_PROMPT
         .replace('{productType}', request.productType)
-        .replace('{materials}', Array.isArray(request.materials) ? request.materials.join(', ') : request.materials)
         .replace('{function}', request.function)
-        .replace('{targetAudience}', request.targetAudience)
         .replace('{origin}', request.origin);
 
     try {
@@ -142,7 +151,7 @@ export const generateQuestionsWithClaude = async (
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'x-api-key': CLAUDE_API_KEY,
+                'x-api-key': apiKey,
                 'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
@@ -180,25 +189,25 @@ export const generateQuestionsWithClaude = async (
 export const analyzeWithClaude = async (
     request: ClaudeAnalysisRequest
 ): Promise<ClaudeAnalysisResponse> => {
-    if (!CLAUDE_API_KEY) {
+    // Check if API key is available (this would be set via environment variable in production)
+    const apiKey = undefined; // In production: process.env.REACT_APP_CLAUDE_API_KEY
+    if (!apiKey) {
         throw new Error('Claude API key not configured');
     }
 
     const prompt = ANALYSIS_PROMPT
         .replace('{productType}', request.productType)
-        .replace('{materials}', Array.isArray(request.materials) ? request.materials.join(', ') : request.materials)
         .replace('{function}', request.function)
-        .replace('{targetAudience}', request.targetAudience)
         .replace('{origin}', request.origin)
-        .replace('{technicalSpecs}', request.technicalSpecs)
-        .replace('{regulatoryRequirements}', request.regulatoryRequirements);
+        .replace('{materials}', Array.isArray(request.materials) ? request.materials.join(', ') : request.materials)
+        .replace('{targetAudience}', request.targetAudience);
 
     try {
         const response = await fetch(`${CLAUDE_API_BASE_URL}/messages`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'x-api-key': CLAUDE_API_KEY,
+                'x-api-key': apiKey,
                 'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
@@ -240,32 +249,98 @@ export const generateQuestionsFallback = async (
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 2000));
 
+    // Generate contextual questions based on product type
+    const productType = request.productType.toLowerCase();
+    const function_desc = request.function.toLowerCase();
+
+    let question1, question2;
+
+    if (productType.includes('electronics') || productType.includes('technology')) {
+        question1 = {
+            id: 'claude_question_1',
+            text: `What are the key technical specifications of this ${function_desc} device? (e.g., power consumption, connectivity, display type)`,
+            type: 'text' as const,
+            required: true,
+            category: 'claude_generated'
+        };
+        question2 = {
+            id: 'claude_question_2',
+            text: 'What is the primary power source for this device?',
+            type: 'single' as const,
+            options: ['Battery Powered', 'Electric (Plug-in)', 'Solar Powered', 'Mechanical/Manual', 'Other'],
+            required: true,
+            category: 'claude_generated'
+        };
+    } else if (productType.includes('textiles') || productType.includes('apparel')) {
+        question1 = {
+            id: 'claude_question_1',
+            text: `What is the primary fabric composition of this ${function_desc} item?`,
+            type: 'multiple' as const,
+            options: ['Cotton', 'Polyester', 'Wool', 'Silk', 'Leather', 'Denim', 'Synthetic', 'Blend', 'Other'],
+            required: true,
+            category: 'claude_generated'
+        };
+        question2 = {
+            id: 'claude_question_2',
+            text: 'What is the intended gender and age group for this clothing item?',
+            type: 'single' as const,
+            options: ['Men\'s Adult', 'Women\'s Adult', 'Children\'s (0-12)', 'Teen\'s (13-17)', 'Unisex', 'Other'],
+            required: true,
+            category: 'claude_generated'
+        };
+    } else if (productType.includes('food') || productType.includes('beverages')) {
+        question1 = {
+            id: 'claude_question_1',
+            text: `How is this ${function_desc} product processed or prepared?`,
+            type: 'single' as const,
+            options: ['Fresh/Raw', 'Frozen', 'Canned', 'Dried', 'Fermented', 'Cooked/Processed', 'Other'],
+            required: true,
+            category: 'claude_generated'
+        };
+        question2 = {
+            id: 'claude_question_2',
+            text: 'What is the primary packaging type for this food product?',
+            type: 'single' as const,
+            options: ['Glass Container', 'Metal Can', 'Plastic Container', 'Cardboard Box', 'Flexible Packaging', 'Bulk', 'Other'],
+            required: true,
+            category: 'claude_generated'
+        };
+    } else if (productType.includes('machinery') || productType.includes('equipment')) {
+        question1 = {
+            id: 'claude_question_1',
+            text: `What is the primary application or industry for this ${function_desc} machinery?`,
+            type: 'single' as const,
+            options: ['Manufacturing', 'Construction', 'Agriculture', 'Medical', 'Automotive', 'Food Processing', 'Textile', 'Other'],
+            required: true,
+            category: 'claude_generated'
+        };
+        question2 = {
+            id: 'claude_question_2',
+            text: 'What is the power source and capacity of this machinery?',
+            type: 'text' as const,
+            required: true,
+            category: 'claude_generated'
+        };
+    } else {
+        // Generic questions for other product types
+        question1 = {
+            id: 'claude_question_1',
+            text: `What are the key materials and construction details of this ${function_desc} product?`,
+            type: 'text' as const,
+            required: true,
+            category: 'claude_generated'
+        };
+        question2 = {
+            id: 'claude_question_2',
+            text: 'What is the primary use case or application for this product?',
+            type: 'text' as const,
+            required: true,
+            category: 'claude_generated'
+        };
+    }
+
     return {
-        questions: [
-            {
-                id: 'claude_question_1',
-                text: `Based on your ${request.productType} product, what specific technical specifications or features are most important for classification?`,
-                type: 'text',
-                required: true,
-                category: 'claude_generated'
-            },
-            {
-                id: 'claude_question_2',
-                text: `For this ${request.function} product, are there any special regulatory requirements or certifications that apply?`,
-                type: 'single',
-                options: [
-                    'FDA Approval Required',
-                    'CE Marking Required',
-                    'FCC Certification',
-                    'ISO Standards',
-                    'Customs Bond Required',
-                    'No Special Requirements',
-                    'Other'
-                ],
-                required: true,
-                category: 'claude_generated'
-            }
-        ]
+        questions: [question1, question2]
     };
 };
 
@@ -279,7 +354,7 @@ export const analyzeFallback = async (
         code: '8517.12.00',
         description: 'Telephone sets, including telephones for cellular networks',
         confidence: 0.95,
-        reasoning: `Based on the analysis: Product type "${request.productType}" with materials "${Array.isArray(request.materials) ? request.materials.join(', ') : request.materials}" and function "${request.function}". Technical specs: "${request.technicalSpecs}". Regulatory requirements: "${request.regulatoryRequirements}". This classification is most appropriate because...`,
+        reasoning: `Based on the analysis: Product type "${request.productType}" with materials "${Array.isArray(request.materials) ? request.materials.join(', ') : request.materials}" and function "${request.function}". Target audience: "${request.targetAudience}". Origin: "${request.origin}". This classification is most appropriate because...`,
         category: request.productType,
         alternativeCodes: [
             {

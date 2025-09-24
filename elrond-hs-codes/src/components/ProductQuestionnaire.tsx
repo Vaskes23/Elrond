@@ -53,45 +53,9 @@ const BASE_QUESTIONS: Question[] = [
         category: 'classification'
     },
     {
-        id: 'material_composition',
-        text: 'What is the primary material composition?',
-        type: 'multiple',
-        options: [
-            'Metal',
-            'Plastic',
-            'Textile/Fabric',
-            'Wood',
-            'Glass',
-            'Ceramic',
-            'Leather',
-            'Rubber',
-            'Paper/Cardboard',
-            'Electronic Components'
-        ],
-        required: true,
-        category: 'classification'
-    },
-    {
         id: 'function_purpose',
         text: 'What is the primary function or purpose of this product?',
         type: 'text',
-        required: true,
-        category: 'classification'
-    },
-    {
-        id: 'target_audience',
-        text: 'Who is the target audience for this product?',
-        type: 'single',
-        options: [
-            'General Consumer',
-            'Professional/Industrial',
-            'Children',
-            'Medical/Healthcare',
-            'Automotive Industry',
-            'Construction Industry',
-            'Food Industry',
-            'Other'
-        ],
         required: true,
         category: 'classification'
     },
@@ -174,9 +138,9 @@ export const ProductQuestionnaire: React.FC<ProductQuestionnaireProps> = ({
             // Prepare context for Claude
             const context: ClaudeQuestionGenerationRequest = {
                 productType: currentAnswers.product_type,
-                materials: currentAnswers.material_composition,
+                materials: 'Not specified', // Will be asked in Claude questions
                 function: currentAnswers.function_purpose,
-                targetAudience: currentAnswers.target_audience,
+                targetAudience: 'Not specified', // Will be asked in Claude questions
                 origin: currentAnswers.origin_country
             };
 
@@ -256,16 +220,14 @@ export const ProductQuestionnaire: React.FC<ProductQuestionnaireProps> = ({
 
     const prepareContextForClaude = (answers: Record<string, any>) => {
         return {
-            // Base questions
+            // Base questions (3)
             productType: answers.product_type,
-            materials: answers.material_composition,
             function: answers.function_purpose,
-            targetAudience: answers.target_audience,
             origin: answers.origin_country,
 
-            // Claude-generated questions
-            technicalSpecs: answers.claude_question_1,
-            regulatoryRequirements: answers.claude_question_2,
+            // Claude-generated questions (2)
+            materials: answers.claude_question_1 || 'Not specified',
+            targetAudience: answers.claude_question_2 || 'Not specified',
 
             // Additional context
             timestamp: new Date().toISOString(),
@@ -392,15 +354,42 @@ export const ProductQuestionnaire: React.FC<ProductQuestionnaireProps> = ({
                                     }} />
                                 </div>
                                 <H3 style={{ marginBottom: '12px' }}>Generating Custom Questions</H3>
-                                <Text style={{ color: '#8A9BA8' }}>
-                                    Claude is analyzing your answers to generate personalized questions...
+                                <Text style={{ color: '#8A9BA8', marginBottom: '16px' }}>
+                                    Claude is analyzing your product details to generate personalized questions...
                                 </Text>
+                                <div style={{
+                                    background: 'rgba(95, 107, 124, 0.1)',
+                                    padding: '12px 16px',
+                                    borderRadius: '6px',
+                                    border: '1px solid #1A252F'
+                                }}>
+                                    <Text style={{ fontSize: '12px', color: '#B8C5D1', marginBottom: '4px' }}>
+                                        Product: {answers.product_type}
+                                    </Text>
+                                    <Text style={{ fontSize: '12px', color: '#B8C5D1', marginBottom: '4px' }}>
+                                        Function: {answers.function_purpose}
+                                    </Text>
+                                    <Text style={{ fontSize: '12px', color: '#B8C5D1' }}>
+                                        Origin: {answers.origin_country}
+                                    </Text>
+                                </div>
                             </div>
                         ) : (
                             <>
-                                <H3 style={{ marginBottom: '16px' }}>
-                                    {currentQuestion?.text}
-                                </H3>
+                                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+                                    <H3 style={{ margin: 0, flex: 1 }}>
+                                        {currentQuestion?.text}
+                                    </H3>
+                                    {currentQuestion?.category === 'claude_generated' && (
+                                        <Tag
+                                            intent="primary"
+                                            minimal
+                                            style={{ marginLeft: '12px', fontSize: '10px' }}
+                                        >
+                                            AI Generated
+                                        </Tag>
+                                    )}
+                                </div>
 
                                 {currentQuestion?.required && (
                                     <Text style={{ color: '#D9822B', marginBottom: '16px', fontSize: '12px' }}>
