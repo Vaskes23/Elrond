@@ -12,6 +12,7 @@ import {
 import { IconNames } from '@blueprintjs/icons';
 import { ChatMessage } from '../types';
 import { mockChatMessages } from '../mockData';
+import ElrondLogo from '../ElrondLogoWhite.png';
 
 interface LeftSidebarProps {
   onToggle: () => void;
@@ -94,19 +95,55 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible, onA
         minHeight: 0
       }}>
         {/* Header */}
-        <div className="palantir-field-group" style={{
-          display: 'flex',
+        <div className="palantir-field-group" style={{ 
+          display: 'flex', 
+          alignItems: 'center',
           justifyContent: 'space-between',
-          alignItems: 'center'
+          padding: '12px 16px',
+          background: 'linear-gradient(145deg, #141B22 0%, #0F161C 100%)',
+          border: '1px solid #1A252F',
+          borderRadius: '6px',
+          marginBottom: '20px'
         }}>
-          <div className="palantir-heading">
-            AI Assistant
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px'
+          }}>
+            <img 
+              src={ElrondLogo} 
+              alt="Elrond Logo" 
+              style={{ 
+                width: '32px', 
+                height: '32px',
+                objectFit: 'contain',
+                filter: 'brightness(1.2) contrast(1.1)'
+              }} 
+            />
+            <div className="palantir-heading" style={{
+              fontSize: '16px',
+              fontWeight: 'bold',
+              margin: 0,
+              background: 'linear-gradient(135deg, #E1E8ED 0%, #B8C5D1 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              letterSpacing: '0.5px'
+            }}>
+              Elrond
+            </div>
           </div>
+          
           <Button
             icon={IconNames.MENU_CLOSED}
             onClick={onToggle}
             minimal
             small
+            style={{
+              color: '#8A9BA8',
+              padding: '6px'
+            }}
+            title="Hide Sidebar"
           />
         </div>
 
@@ -137,7 +174,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible, onA
                 alignItems: 'center',
                 gap: '12px'
               }}>
-                <span className="bp5-icon bp5-icon-plus" style={{
+                <span className="bp5-icon bp5-icon-plus" style={{ 
                   color: '#3DCC91',
                   fontSize: '16px'
                 }} />
@@ -162,7 +199,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible, onA
                 alignItems: 'center',
                 gap: '12px'
               }}>
-                <span className="bp5-icon bp5-icon-cloud-upload" style={{
+                <span className="bp5-icon bp5-icon-cloud-upload" style={{ 
                   color: '#8A9BA8',
                   fontSize: '16px'
                 }} />
@@ -202,7 +239,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible, onA
                 alignItems: 'center',
                 gap: '12px'
               }}>
-                <span className="bp5-icon bp5-icon-document" style={{
+                <span className="bp5-icon bp5-icon-document" style={{ 
                   color: '#3DCC91',
                   fontSize: '16px'
                 }} />

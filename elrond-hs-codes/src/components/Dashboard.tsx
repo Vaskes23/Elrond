@@ -84,8 +84,6 @@ export const Dashboard: React.FC = () => {
           onProductSelect={handleProductSelect}
           onToggle={toggleRightSidebar}
           visible={rightSidebarVisible}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
         />
       </div>
 

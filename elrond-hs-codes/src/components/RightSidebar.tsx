@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Card,
-  Text,
   Button,
   InputGroup,
   Tag,
@@ -14,30 +13,30 @@ interface RightSidebarProps {
   products: Product[];
   selectedProduct: Product | null;
   onProductSelect: (product: Product) => void;
-  onToggle: () => void;
   visible: boolean;
-  searchQuery: string;
-  onSearchChange: (query: string) => void;
+  onToggle: () => void;
 }
 
-export const RightSidebar: React.FC<RightSidebarProps> = ({
-  products,
-  selectedProduct,
-  onProductSelect,
-  onToggle,
-  visible,
-  searchQuery,
-  onSearchChange
+const RightSidebar: React.FC<RightSidebarProps> = ({ 
+  products, 
+  selectedProduct, 
+  onProductSelect, 
+  visible, 
+  onToggle 
 }) => {
-  const formatDate = (date: Date) => {
+  const [searchQuery, setSearchQuery] = React.useState('');
+
+  const formatDate = (dateInput: string | Date) => {
+    const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
     return date.toLocaleDateString('en-US', {
+      year: 'numeric',
       month: 'short',
       day: 'numeric',
-      year: 'numeric'
     });
   };
 
-  const formatTime = (date: Date) => {
+  const formatTime = (dateInput: string | Date) => {
+    const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
     return date.toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit'
@@ -59,22 +58,28 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
     new Date(b.dateAdded).getTime() - new Date(a.dateAdded).getTime()
   );
 
+  const filteredProducts = sortedProducts.filter(product =>
+    product.identification.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    product.hsCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (product.category && product.category.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
   if (!visible) return null;
 
   return (
     <div style={{ 
-      padding: '20px 16px', 
+      padding: '16px 12px', 
       display: 'flex', 
       flexDirection: 'column', 
       height: '100%',
       minHeight: 0
     }}>
       {/* Header */}
-      <div style={{ 
+      <div className="palantir-field-group" style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: '16px'
+        alignItems: 'center'
       }}>
         <div className="palantir-heading">
           Product History
@@ -88,55 +93,80 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
       </div>
 
       {/* Search */}
-      <div style={{ marginBottom: '16px' }}>
+      <div className="palantir-field-group">
         <InputGroup
           leftIcon={IconNames.SEARCH}
           placeholder="Search products..."
           value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
+          onChange={(e) => setSearchQuery(e.target.value)}
           rightElement={
             searchQuery ? (
               <Button
                 icon={IconNames.CROSS}
                 minimal
-                small
-                onClick={() => onSearchChange('')}
+                onClick={() => setSearchQuery('')}
               />
             ) : undefined
           }
+          fill
         />
       </div>
 
-      {/* Stats */}
-      <Card className="palantir-field-group" style={{ padding: '16px' }}>
+      {/* Statistics Card */}
+      <Card className="palantir-field-group" style={{ padding: '12px 16px' }}>
         <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between',
-          alignItems: 'center'
+          display: 'grid', 
+          gridTemplateColumns: '1fr auto 1fr auto 1fr',
+          alignItems: 'center',
+          gap: '12px'
         }}>
           <div style={{ textAlign: 'center' }}>
-            <div className="palantir-heading" style={{ fontSize: '18px', margin: 0 }}>
+            <div className="palantir-heading" style={{ 
+              fontSize: '18px', 
+              margin: '0 0 2px 0',
+              fontWeight: '600'
+            }}>
               {sortedProducts.length}
             </div>
-            <div className="palantir-caption">
+            <div className="palantir-caption" style={{ fontSize: '10px' }}>
               Total Products
             </div>
           </div>
-          <Divider style={{ height: '40px', margin: '0 12px' }} />
+          
+          <Divider style={{ 
+            height: '28px', 
+            borderColor: '#1A252F',
+            margin: 0
+          }} />
+          
           <div style={{ textAlign: 'center' }}>
-            <div className="palantir-heading" style={{ fontSize: '18px', margin: 0 }}>
+            <div className="palantir-heading" style={{ 
+              fontSize: '18px', 
+              margin: '0 0 2px 0',
+              fontWeight: '600'
+            }}>
               {new Set(sortedProducts.map(p => p.category)).size}
             </div>
-            <div className="palantir-caption">
+            <div className="palantir-caption" style={{ fontSize: '10px' }}>
               Categories
             </div>
           </div>
-          <Divider style={{ height: '40px', margin: '0 12px' }} />
+          
+          <Divider style={{ 
+            height: '28px', 
+            borderColor: '#1A252F',
+            margin: 0
+          }} />
+          
           <div style={{ textAlign: 'center' }}>
-            <div className="palantir-heading" style={{ fontSize: '18px', margin: 0 }}>
+            <div className="palantir-heading" style={{ 
+              fontSize: '18px', 
+              margin: '0 0 2px 0',
+              fontWeight: '600'
+            }}>
               {new Set(sortedProducts.map(p => p.origin)).size}
             </div>
-            <div className="palantir-caption">
+            <div className="palantir-caption" style={{ fontSize: '10px' }}>
               Countries
             </div>
           </div>
@@ -144,29 +174,25 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
       </Card>
 
       {/* Product List */}
-      <div style={{ 
-        flex: 1, 
-        overflowY: 'auto',
-        minHeight: 0
-      }}>
-        {sortedProducts.length === 0 ? (
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        {filteredProducts.length === 0 ? (
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center', 
             justifyContent: 'center',
-            height: '200px'
+            height: '100%'
           }}>
             <span 
               className="bp5-icon bp5-icon-search" 
               style={{ marginBottom: '8px', color: '#5C7080', fontSize: '32px' }}
             />
-            <Text style={{ color: '#5C7080' }}>
+            <div className="palantir-body" style={{ color: '#8A9BA8' }}>
               No products found
-            </Text>
+            </div>
           </div>
         ) : (
-          sortedProducts.map((product) => (
+          filteredProducts.map((product) => (
             <div
               key={product.id}
               className={`data-row ${selectedProduct?.id === product.id ? 'selected' : ''}`}
@@ -185,31 +211,36 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                 transition: 'all 0.15s ease'
               }}
             >
+              {/* Header with product ID and metadata */}
               <div style={{ 
                 display: 'flex', 
                 justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                marginBottom: '6px'
+                alignItems: 'center',
+                marginBottom: '8px'
               }}>
-                <div className="data-cell">
-                  <div className="palantir-body" style={{ 
-                    fontWeight: '600',
-                    fontSize: '12px',
-                    color: selectedProduct?.id === product.id ? '#E1E8ED' : '#E1E8ED'
-                  }}>
-                    {product.identification}
-                  </div>
+                <div className="palantir-code" style={{ 
+                  fontSize: '11px',
+                  padding: '2px 6px',
+                  fontWeight: '600'
+                }}>
+                  {product.identification}
                 </div>
-                <div className="data-cell narrow" style={{ textAlign: 'right' }}>
+                <div style={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '10px'
+                }}>
                   <div className="palantir-caption">
                     {formatDate(product.dateAdded)}
                   </div>
-                  <div className="palantir-caption" style={{ fontSize: '10px' }}>
+                  <div className="palantir-caption" style={{ opacity: '0.7' }}>
                     {formatTime(product.dateAdded)}
                   </div>
                 </div>
               </div>
 
+              {/* Product description */}
               <div className="palantir-body" style={{ 
                 fontSize: '11px',
                 color: '#B8C5D1',
@@ -218,43 +249,58 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: 'vertical',
                 overflow: 'hidden',
-                lineHeight: '1.4'
+                lineHeight: '1.4',
+                minHeight: '30px'
               }}>
                 {product.description}
               </div>
 
+              {/* Tags and metadata */}
               <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between',
+                display: 'flex',
                 alignItems: 'center',
-                gap: '12px'
+                gap: '8px',
+                flexWrap: 'wrap'
               }}>
-                <div className="palantir-code" style={{ fontSize: '10px' }}>
+                <div className="palantir-code" style={{ 
+                  fontSize: '10px',
+                  padding: '2px 6px',
+                  fontWeight: '500'
+                }}>
                   {product.hsCode}
                 </div>
                 
-                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                  {product.category && (
-                    <Tag 
-                      intent={getCategoryColor(product.category) as any}
-                      minimal
-                      style={{ fontSize: '10px' }}
-                    >
-                      {product.category}
-                    </Tag>
-                  )}
-                  {product.origin && (
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <span 
-                        className="bp5-icon bp5-icon-globe" 
-                        style={{ marginRight: '2px', color: '#D3D8DE', fontSize: '10px' }}
-                      />
-                      <Text style={{ fontSize: '10px', color: '#D3D8DE' }}>
-                        {product.origin}
-                      </Text>
+                <Tag 
+                  intent={getCategoryColor(product.category) as any}
+                  minimal
+                  style={{ 
+                    fontSize: '9px',
+                    padding: '2px 6px',
+                    minHeight: 'auto',
+                    lineHeight: '1.2'
+                  }}
+                >
+                  {product.category}
+                </Tag>
+                
+                {product.origin && (
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center',
+                    gap: '3px'
+                  }}>
+                    <span 
+                      className="bp5-icon bp5-icon-globe" 
+                      style={{ color: '#8A9BA8', fontSize: '9px' }}
+                    />
+                    <div className="palantir-caption" style={{ 
+                      fontSize: '9px',
+                      lineHeight: '1.2'
+                    }}>
+                      {product.origin}
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
           ))
@@ -262,8 +308,12 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
       </div>
 
       {/* Footer Actions */}
-      <Divider style={{ margin: '16px 0' }} />
-      <div style={{ display: 'flex', gap: '8px' }}>
+      <Divider style={{ margin: '12px 0', borderColor: '#1A252F' }} />
+      <div className="palantir-field-group" style={{ 
+        display: 'flex', 
+        gap: '8px',
+        marginBottom: 0
+      }}>
         <Button
           text="Export List"
           icon={IconNames.EXPORT}
@@ -281,3 +331,5 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
     </div>
   );
 };
+
+export { RightSidebar };
