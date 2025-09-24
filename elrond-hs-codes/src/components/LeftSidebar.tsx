@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
   Button,
+  ButtonGroup,
   Card,
   InputGroup,
   Divider,
@@ -148,61 +149,67 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible, onA
         </div>
 
         {/* Quick Actions Section */}
-        <Card className="palantir-field-group" style={{ padding: '12px 16px' }}>
-          <div className="palantir-heading" style={{ marginBottom: '12px' }}>
-            Quick Actions
-          </div>
+        <Card
+          className="palantir-field-group"
+          style={{
+            padding: '16px',
+            backgroundColor: '#111418',
+            border: '1px solid #1C2127'
+          }}
+        >
 
-          <div style={{
-            display: 'grid',
-            gap: '8px'
-          }}>
-            {/* Add Product Card */}
+          <ButtonGroup
+            fill
+            vertical
+            style={{
+              gap: '8px'
+            }}
+          >
+            <Button
+              icon={IconNames.PLUS}
+              text="Add New Product"
+              onClick={onAddProduct}
+              style={{
+                backgroundColor: '#1C2127',
+                border: '1px solid #5F6B7C',
+                color: '#D3D8DE',
+                justifyContent: 'flex-start',
+                padding: '12px 16px',
+                marginBottom: '8px',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                const target = e.target as HTMLElement;
+                target.style.backgroundColor = '#5F6B7C';
+                target.style.color = '#FFFFFF';
+              }}
+              onMouseLeave={(e) => {
+                const target = e.target as HTMLElement;
+                target.style.backgroundColor = '#1C2127';
+                target.style.color = '#D3D8DE';
+              }}
+            />
+
             <Card
-              interactive
               style={{
                 padding: '12px 16px',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-                border: '1px solid #1A252F',
-                backgroundColor: 'rgba(255, 255, 255, 0.02)'
+                backgroundColor: '#1C2127',
+                border: '1px solid #5F6B7C',
+                marginBottom: '8px'
               }}
-              onClick={onAddProduct}
             >
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '12px'
               }}>
-                <span className="bp5-icon bp5-icon-plus" style={{ 
-                  color: '#8A9BA8',
-                  fontSize: '16px'
-                }} />
-                <div className="palantir-body" style={{
-                  fontWeight: '500',
-                  color: '#E1E8ED'
-                }}>
-                  Add New Product
-                </div>
-              </div>
-            </Card>
-
-            {/* File Upload Card */}
-            <Card style={{
-              padding: '12px 16px',
-              border: '1px solid #1A252F',
-              backgroundColor: 'rgba(255, 255, 255, 0.02)',
-              transition: 'all 0.15s ease'
-            }}>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px'
-              }}>
-                <span className="bp5-icon bp5-icon-cloud-upload" style={{ 
-                  color: '#8A9BA8',
-                  fontSize: '16px'
-                }} />
+                <span
+                  className="bp5-icon bp5-icon-cloud-upload"
+                  style={{
+                    color: '#5F6B7C',
+                    fontSize: '16px'
+                  }}
+                />
                 <div style={{ flex: 1 }}>
                   <FileInput
                     text="Upload Files..."
@@ -216,16 +223,9 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible, onA
               </div>
             </Card>
 
-            {/* New Report Card */}
-            <Card
-              interactive
-              style={{
-                padding: '12px 16px',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-                border: '1px solid #1A252F',
-                backgroundColor: 'rgba(255, 255, 255, 0.02)'
-              }}
+            <Button
+              icon={IconNames.DOCUMENT}
+              text="Create New Report"
               onClick={() => {
                 toasterRef.current?.show({
                   message: 'New report feature coming soon!',
@@ -233,25 +233,26 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible, onA
                   icon: IconNames.DOCUMENT,
                 });
               }}
-            >
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px'
-              }}>
-                <span className="bp5-icon bp5-icon-document" style={{ 
-                  color: '#8A9BA8',
-                  fontSize: '16px'
-                }} />
-                <div className="palantir-body" style={{
-                  fontWeight: '500',
-                  color: '#E1E8ED'
-                }}>
-                  Create New Report
-                </div>
-              </div>
-            </Card>
-          </div>
+              style={{
+                backgroundColor: '#1C2127',
+                border: '1px solid #5F6B7C',
+                color: '#D3D8DE',
+                justifyContent: 'flex-start',
+                padding: '12px 16px',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                const target = e.target as HTMLElement;
+                target.style.backgroundColor = '#5F6B7C';
+                target.style.color = '#FFFFFF';
+              }}
+              onMouseLeave={(e) => {
+                const target = e.target as HTMLElement;
+                target.style.backgroundColor = '#1C2127';
+                target.style.color = '#D3D8DE';
+              }}
+            />
+          </ButtonGroup>
         </Card>
 
         {/* Uploaded Files */}
