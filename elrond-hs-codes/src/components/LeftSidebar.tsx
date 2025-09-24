@@ -148,8 +148,8 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible, onA
         </div>
 
         {/* Quick Actions Section */}
-        <div className="palantir-field-group">
-          <div className="palantir-subheading" style={{ marginBottom: '12px' }}>
+        <Card className="palantir-field-group" style={{ padding: '12px 16px' }}>
+          <div className="palantir-heading" style={{ marginBottom: '12px' }}>
             Quick Actions
           </div>
 
@@ -162,10 +162,10 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible, onA
               interactive
               style={{
                 padding: '12px 16px',
-                border: '1px solid #1A252F',
-                background: 'linear-gradient(145deg, #141B22 0%, #0F161C 100%)',
                 cursor: 'pointer',
-                transition: 'all 0.15s ease'
+                transition: 'all 0.15s ease',
+                border: '1px solid #1A252F',
+                backgroundColor: 'rgba(255, 255, 255, 0.02)'
               }}
               onClick={onAddProduct}
             >
@@ -175,7 +175,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible, onA
                 gap: '12px'
               }}>
                 <span className="bp5-icon bp5-icon-plus" style={{ 
-                  color: '#3DCC91',
+                  color: '#8A9BA8',
                   fontSize: '16px'
                 }} />
                 <div className="palantir-body" style={{
@@ -191,7 +191,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible, onA
             <Card style={{
               padding: '12px 16px',
               border: '1px solid #1A252F',
-              background: 'linear-gradient(145deg, #141B22 0%, #0F161C 100%)',
+              backgroundColor: 'rgba(255, 255, 255, 0.02)',
               transition: 'all 0.15s ease'
             }}>
               <div style={{
@@ -221,10 +221,10 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible, onA
               interactive
               style={{
                 padding: '12px 16px',
-                border: '1px solid #1A252F',
-                background: 'linear-gradient(145deg, #141B22 0%, #0F161C 100%)',
                 cursor: 'pointer',
-                transition: 'all 0.15s ease'
+                transition: 'all 0.15s ease',
+                border: '1px solid #1A252F',
+                backgroundColor: 'rgba(255, 255, 255, 0.02)'
               }}
               onClick={() => {
                 toasterRef.current?.show({
@@ -240,7 +240,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible, onA
                 gap: '12px'
               }}>
                 <span className="bp5-icon bp5-icon-document" style={{ 
-                  color: '#3DCC91',
+                  color: '#8A9BA8',
                   fontSize: '16px'
                 }} />
                 <div className="palantir-body" style={{
@@ -252,7 +252,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible, onA
               </div>
             </Card>
           </div>
-        </div>
+        </Card>
 
         {/* Uploaded Files */}
         {uploadedFiles.length > 0 && (
@@ -287,14 +287,14 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible, onA
         <Divider style={{ margin: '20px 0', borderColor: '#1A252F' }} />
 
         {/* Chat Section */}
-        <div style={{
+        <Card style={{
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
           minHeight: 0,
-          marginTop: '16px'
+          padding: '12px 16px'
         }}>
-          <div className="palantir-subheading" style={{ marginBottom: '12px' }}>
+          <div className="palantir-heading" style={{ marginBottom: '12px' }}>
             Chat
           </div>
 
@@ -302,63 +302,44 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible, onA
           <div style={{
             flex: 1,
             overflowY: 'auto',
-            marginBottom: '16px',
-            border: '1px solid #1A252F',
-            borderRadius: '4px',
-            padding: '8px',
-            background: 'linear-gradient(145deg, #0F161C 0%, #141B22 100%)'
+            marginBottom: '16px'
           }}>
             {chatMessages.map((msg) => (
               <div key={msg.id} style={{
-                marginBottom: '16px',
-                display: 'flex',
-                flexDirection: 'column'
+                padding: '12px 16px',
+                marginBottom: '8px',
+                border: '1px solid #1A252F',
+                borderRadius: '4px',
+                backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                transition: 'all 0.15s ease'
               }}>
-                {/* Message bubble */}
-                <div style={{
-                  alignSelf: msg.isUser ? 'flex-end' : 'flex-start',
-                  maxWidth: '85%'
+                {/* Header with sender and timestamp */}
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '8px'
                 }}>
-                  {/* Sender and timestamp */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    marginBottom: '4px',
-                    justifyContent: msg.isUser ? 'flex-end' : 'flex-start'
+                  <div className="palantir-code" style={{ 
+                    fontSize: '11px',
+                    padding: '2px 6px',
+                    fontWeight: '600'
                   }}>
-                    <div className="palantir-caption" style={{
-                      fontSize: '10px',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      color: msg.isUser ? '#B8C5D1' : '#8A9BA8'
-                    }}>
-                      {msg.isUser ? 'You' : 'AI Assistant'}
-                    </div>
-                    <div className="palantir-caption" style={{ fontSize: '10px' }}>
-                      {formatTime(msg.timestamp)}
-                    </div>
+                    {msg.isUser ? 'You' : 'AI Assistant'}
                   </div>
+                  <div className="palantir-caption" style={{ fontSize: '10px' }}>
+                    {formatTime(msg.timestamp)}
+                  </div>
+                </div>
 
-                  {/* Message content */}
-                  <div style={{
-                    padding: '12px 16px',
-                    borderRadius: msg.isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                    background: msg.isUser
-                      ? 'linear-gradient(145deg, #1A252F 0%, #2A3A47 100%)'
-                      : 'linear-gradient(145deg, #141B22 0%, #0F161C 100%)',
-                    border: '1px solid #1A252F',
-                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)'
-                  }}>
-                    <div className="palantir-body" style={{
-                      fontSize: '12px',
-                      lineHeight: '1.5',
-                      color: '#E1E8ED',
-                      margin: 0
-                    }}>
-                      {msg.message}
-                    </div>
-                  </div>
+                {/* Message content */}
+                <div className="palantir-body" style={{ 
+                  fontSize: '11px',
+                  color: '#B8C5D1',
+                  lineHeight: '1.4',
+                  margin: 0
+                }}>
+                  {msg.message}
                 </div>
               </div>
             ))}
@@ -382,19 +363,19 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible, onA
                 }
               }}
               fill
-              style={{
-                fontSize: '12px',
-                height: '32px'
-              }}
-            />
-            <Button
-              icon={IconNames.SEND_MESSAGE}
-              onClick={handleSendMessage}
-              disabled={!currentMessage.trim()}
-              intent={Intent.PRIMARY}
+              rightElement={
+                currentMessage.trim() ? (
+                  <Button
+                    icon={IconNames.SEND_MESSAGE}
+                    minimal
+                    onClick={handleSendMessage}
+                    style={{ marginRight: '4px' }}
+                  />
+                ) : undefined
+              }
             />
           </div>
-        </div>
+        </Card>
       </div>
     </>
   );

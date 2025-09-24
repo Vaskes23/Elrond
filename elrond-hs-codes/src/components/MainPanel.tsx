@@ -80,11 +80,6 @@ export const MainPanel: React.FC<MainPanelProps> = ({
 
         <div style={{ display: 'flex', gap: '8px' }}>
           <Button
-            text="Export Data"
-            icon={IconNames.EXPORT}
-            minimal
-          />
-          <Button
             text="Settings"
             icon={IconNames.COG}
             minimal

@@ -306,29 +306,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
           ))
         )}
       </div>
-
-      {/* Footer Actions */}
-      <Divider style={{ margin: '12px 0', borderColor: '#1A252F' }} />
-      <div className="palantir-field-group" style={{ 
-        display: 'flex', 
-        gap: '8px',
-        marginBottom: 0
-      }}>
-        <Button
-          text="Export List"
-          icon={IconNames.EXPORT}
-          small
-          fill
-          minimal
-        />
-        <Button
-          text="Filter"
-          icon={IconNames.FILTER}
-          small
-          minimal
-        />
       </div>
-    </div>
   );
 };
 

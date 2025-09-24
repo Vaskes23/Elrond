@@ -45,16 +45,7 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className={`dashboard ${Classes.DARK}`}>
-      {/* Left Sidebar Toggle Button */}
-      {!leftSidebarVisible && (
-        <Button
-          className="sidebar-toggle left"
-          icon={IconNames.MENU_OPEN}
-          onClick={toggleLeftSidebar}
-          minimal
-          small
-        />
-      )}
+      
 
       {/* Left Sidebar */}
       <div className={`sidebar left ${leftSidebarVisible ? '' : 'hidden'}`}>
@@ -87,16 +78,7 @@ export const Dashboard: React.FC = () => {
         />
       </div>
 
-      {/* Right Sidebar Toggle Button */}
-      {!rightSidebarVisible && (
-        <Button
-          className="sidebar-toggle right"
-          icon={IconNames.MENU_OPEN}
-          onClick={toggleRightSidebar}
-          minimal
-          small
-        />
-      )}
+      
 
       <ProductQuestionnaire
         isOpen={isQuestionnaireOpen}
