@@ -95,7 +95,7 @@ code {
   border: 1px solid #1A252F;
   border-radius: 4px;
   color: #E1E8ED;
-  box-shadow: 
+  box-shadow:
     0 1px 3px rgba(0, 0, 0, 0.4),
     0 0 0 1px rgba(255, 255, 255, 0.05),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
@@ -104,7 +104,7 @@ code {
 
 .bp5-dark .bp5-card:hover {
   border-color: #2A3A47;
-  box-shadow: 
+  box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.6),
     0 0 0 1px rgba(255, 255, 255, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.15);
@@ -120,8 +120,8 @@ code {
 
 .bp5-dark .bp5-input:focus {
   border-color: #E1E8ED;
-  box-shadow: 
-    0 0 0 1px #E1E8ED, 
+  box-shadow:
+    0 0 0 1px #E1E8ED,
     0 0 0 3px rgba(225, 232, 237, 0.3),
     inset 0 1px 2px rgba(0, 0, 0, 0.1);
 }
@@ -454,4 +454,15 @@ code {
 
 .data-cell.wide {
   flex: 2;
+}
+
+/* Spinning animation for loading icons */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }

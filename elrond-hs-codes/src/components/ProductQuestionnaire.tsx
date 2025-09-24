@@ -17,6 +17,14 @@ import {
 } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
 import { Question, HSCodeSuggestion, Product } from '../types';
+import {
+    generateQuestionsWithClaude,
+    analyzeWithClaude,
+    generateQuestionsFallback,
+    analyzeFallback,
+    ClaudeQuestionGenerationRequest,
+    ClaudeAnalysisRequest
+} from '../utils/claudeApi';
 
 interface ProductQuestionnaireProps {
     isOpen: boolean;
@@ -24,7 +32,7 @@ interface ProductQuestionnaireProps {
     onComplete: (product: Product) => void;
 }
 
-const QUESTIONS: Question[] = [
+const BASE_QUESTIONS: Question[] = [
     {
         id: 'product_type',
         text: 'What type of product is this?',
@@ -136,9 +144,11 @@ export const ProductQuestionnaire: React.FC<ProductQuestionnaireProps> = ({
     const [answers, setAnswers] = useState<Record<string, any>>({});
     const [suggestedHSCode, setSuggestedHSCode] = useState<HSCodeSuggestion | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [questions, setQuestions] = useState<Question[]>(BASE_QUESTIONS);
+    const [isGeneratingQuestions, setIsGeneratingQuestions] = useState(false);
 
-    const currentQuestion = QUESTIONS[currentStep];
-    const progress = ((currentStep + 1) / QUESTIONS.length) * 100;
+    const currentQuestion = questions[currentStep];
+    const progress = ((currentStep + 1) / questions.length) * 100;
 
     // Reset when dialog opens
     useEffect(() => {
@@ -157,8 +167,48 @@ export const ProductQuestionnaire: React.FC<ProductQuestionnaireProps> = ({
         }));
     };
 
+    const generateClaudeQuestions = async (currentAnswers: Record<string, any>) => {
+        setIsGeneratingQuestions(true);
+
+        try {
+            // Prepare context for Claude
+            const context: ClaudeQuestionGenerationRequest = {
+                productType: currentAnswers.product_type,
+                materials: currentAnswers.material_composition,
+                function: currentAnswers.function_purpose,
+                targetAudience: currentAnswers.target_audience,
+                origin: currentAnswers.origin_country
+            };
+
+            // Try Claude API first, fallback to simulation if not available
+            let claudeResponse;
+            try {
+                claudeResponse = await generateQuestionsWithClaude(context);
+            } catch (apiError) {
+                console.warn('Claude API not available, using fallback:', apiError);
+                claudeResponse = await generateQuestionsFallback(context);
+            }
+
+            // Add the generated questions to the existing questions
+            const newQuestions = [...BASE_QUESTIONS, ...claudeResponse.questions];
+            setQuestions(newQuestions);
+
+        } catch (error) {
+            console.error('Error generating questions with Claude:', error);
+            // Fallback to base questions if everything fails
+            setQuestions(BASE_QUESTIONS);
+        } finally {
+            setIsGeneratingQuestions(false);
+        }
+    };
+
+
     const handleNext = () => {
-        if (currentStep < QUESTIONS.length - 1) {
+        if (currentStep < questions.length - 1) {
+            setCurrentStep(prev => prev + 1);
+        } else if (currentStep === BASE_QUESTIONS.length - 1) {
+            // After base questions, generate Claude questions
+            generateClaudeQuestions(answers);
             setCurrentStep(prev => prev + 1);
         } else {
             analyzeAnswers();
@@ -174,19 +224,55 @@ export const ProductQuestionnaire: React.FC<ProductQuestionnaireProps> = ({
     const analyzeAnswers = async () => {
         setIsAnalyzing(true);
 
-        // Simulate analysis delay
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        try {
+            // Prepare comprehensive context for Claude
+            const context: ClaudeAnalysisRequest = prepareContextForClaude(answers);
 
-        const productType = answers.product_type;
-        const suggestions = HS_CODE_DATABASE[productType] || [];
+            // Try Claude API first, fallback to simulation if not available
+            let claudeAnalysis;
+            try {
+                claudeAnalysis = await analyzeWithClaude(context);
+            } catch (apiError) {
+                console.warn('Claude API not available, using fallback:', apiError);
+                claudeAnalysis = await analyzeFallback(context);
+            }
 
-        if (suggestions.length > 0) {
-            const bestMatch = suggestions[0];
-            setSuggestedHSCode(bestMatch);
+            setSuggestedHSCode(claudeAnalysis);
+
+        } catch (error) {
+            console.error('Error analyzing with Claude:', error);
+            // Fallback to basic analysis
+            const productType = answers.product_type;
+            const suggestions = HS_CODE_DATABASE[productType] || [];
+
+            if (suggestions.length > 0) {
+                const bestMatch = suggestions[0];
+                setSuggestedHSCode(bestMatch);
+            }
+        } finally {
+            setIsAnalyzing(false);
         }
-
-        setIsAnalyzing(false);
     };
+
+    const prepareContextForClaude = (answers: Record<string, any>) => {
+        return {
+            // Base questions
+            productType: answers.product_type,
+            materials: answers.material_composition,
+            function: answers.function_purpose,
+            targetAudience: answers.target_audience,
+            origin: answers.origin_country,
+
+            // Claude-generated questions
+            technicalSpecs: answers.claude_question_1,
+            regulatoryRequirements: answers.claude_question_2,
+
+            // Additional context
+            timestamp: new Date().toISOString(),
+            questionnaireVersion: '1.0'
+        };
+    };
+
 
     const handleComplete = () => {
         const product: Product = {
@@ -269,6 +355,10 @@ export const ProductQuestionnaire: React.FC<ProductQuestionnaireProps> = ({
         return currentAnswer && currentAnswer !== '';
     };
 
+    const isGeneratingQuestionsStep = () => {
+        return currentStep === BASE_QUESTIONS.length && isGeneratingQuestions;
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -286,25 +376,43 @@ export const ProductQuestionnaire: React.FC<ProductQuestionnaireProps> = ({
                     <>
                         <div style={{ marginBottom: '20px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                                <Text>Step {currentStep + 1} of {QUESTIONS.length}</Text>
+                                <Text>Step {currentStep + 1} of {questions.length}</Text>
                                 <Text>{Math.round(progress)}% Complete</Text>
                             </div>
                             <ProgressBar value={progress / 100} intent="primary" />
                         </div>
 
-                        <H3 style={{ marginBottom: '16px' }}>
-                            {currentQuestion?.text}
-                        </H3>
+                        {isGeneratingQuestionsStep() ? (
+                            <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                                <div style={{ marginBottom: '20px' }}>
+                                    <span className="bp5-icon bp5-icon-refresh" style={{
+                                        fontSize: '32px',
+                                        color: '#48AFF0',
+                                        animation: 'spin 1s linear infinite'
+                                    }} />
+                                </div>
+                                <H3 style={{ marginBottom: '12px' }}>Generating Custom Questions</H3>
+                                <Text style={{ color: '#8A9BA8' }}>
+                                    Claude is analyzing your answers to generate personalized questions...
+                                </Text>
+                            </div>
+                        ) : (
+                            <>
+                                <H3 style={{ marginBottom: '16px' }}>
+                                    {currentQuestion?.text}
+                                </H3>
 
-                        {currentQuestion?.required && (
-                            <Text style={{ color: '#D9822B', marginBottom: '16px', fontSize: '12px' }}>
-                                * This field is required
-                            </Text>
+                                {currentQuestion?.required && (
+                                    <Text style={{ color: '#D9822B', marginBottom: '16px', fontSize: '12px' }}>
+                                        * This field is required
+                                    </Text>
+                                )}
+
+                                <FormGroup>
+                                    {renderQuestion()}
+                                </FormGroup>
+                            </>
                         )}
-
-                        <FormGroup>
-                            {renderQuestion()}
-                        </FormGroup>
                     </>
                 ) : (
                     <div>
@@ -362,11 +470,11 @@ export const ProductQuestionnaire: React.FC<ProductQuestionnaireProps> = ({
                         <>
                             <Button text="Previous" onClick={handlePrevious} disabled={currentStep === 0} />
                             <Button
-                                text={currentStep === QUESTIONS.length - 1 ? "Analyze" : "Next"}
+                                text={currentStep === questions.length - 1 ? "Analyze" : "Next"}
                                 intent="primary"
                                 onClick={handleNext}
-                                disabled={!canProceed()}
-                                loading={isAnalyzing}
+                                disabled={!canProceed() || isGeneratingQuestions}
+                                loading={isAnalyzing || isGeneratingQuestions}
                             />
                         </>
                     )}
