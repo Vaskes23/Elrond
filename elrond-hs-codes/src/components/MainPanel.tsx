@@ -49,17 +49,18 @@ export const MainPanel: React.FC<MainPanelProps> = ({
     }
   };
 
+
   return (
-    <div       style={{ 
-        padding: '20px 24px', 
-        height: '100%', 
-        overflowY: 'auto',
-        background: 'linear-gradient(180deg, #0A0E13 0%, #0C1117 100%)'
-      }}>
+    <div style={{
+      padding: '20px 24px',
+      height: '100%',
+      overflowY: 'auto',
+      background: 'linear-gradient(180deg, #0A0E13 0%, #0C1117 100%)'
+    }}>
       {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: '24px'
       }}>
@@ -76,7 +77,7 @@ export const MainPanel: React.FC<MainPanelProps> = ({
             HS Code Classification Dashboard
           </H1>
         </div>
-        
+
         <div style={{ display: 'flex', gap: '8px' }}>
           <Button
             text="Export Data"
@@ -103,9 +104,9 @@ export const MainPanel: React.FC<MainPanelProps> = ({
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           {/* Product Header Card */}
           <Card className="palantir-section" style={{ padding: '20px 24px' }}>
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
               alignItems: 'flex-start',
               marginBottom: '16px'
             }}>
@@ -114,15 +115,15 @@ export const MainPanel: React.FC<MainPanelProps> = ({
                   {selectedProduct.identification}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <Tag 
-                    intent="primary" 
-                    large 
+                  <Tag
+                    intent="primary"
+                    large
                     style={{ fontWeight: 'bold', fontSize: '16px' }}
                   >
                     HS: {selectedProduct.hsCode}
                   </Tag>
                   {selectedProduct.category && (
-                    <Tag 
+                    <Tag
                       intent={getCategoryColor(selectedProduct.category) as any}
                       minimal
                     >
@@ -137,7 +138,7 @@ export const MainPanel: React.FC<MainPanelProps> = ({
                   )}
                 </div>
               </div>
-              
+
               <div style={{ textAlign: 'right' }}>
                 <div className="palantir-caption" style={{ marginBottom: '4px' }}>
                   Added on
@@ -147,13 +148,13 @@ export const MainPanel: React.FC<MainPanelProps> = ({
                 </div>
               </div>
             </div>
-            
+
             <Divider style={{ margin: '16px 0' }} />
-            
-            <Text style={{ 
-              fontSize: '16px', 
+
+            <Text style={{
+              fontSize: '16px',
               lineHeight: '1.6',
-              margin: 0 
+              margin: 0
             }}>
               {selectedProduct.description}
             </Text>
@@ -161,23 +162,23 @@ export const MainPanel: React.FC<MainPanelProps> = ({
 
           {/* Classification Reasoning Card */}
           <Card style={{ marginBottom: '20px', padding: '24px' }}>
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
               marginBottom: '16px'
             }}>
-              <span 
-                className="bp5-icon bp5-icon-lightbulb" 
+              <span
+                className="bp5-icon bp5-icon-lightbulb"
                 style={{ marginRight: '8px', color: '#D9822B', fontSize: '20px' }}
               />
               <div className="palantir-heading">
                 Classification Reasoning
               </div>
             </div>
-            
+
             <Callout intent="primary" style={{ backgroundColor: 'rgba(95, 107, 124, 0.15)', marginTop: '12px' }}>
-              <div className="palantir-body" style={{ 
-                fontSize: '13px', 
+              <div className="palantir-body" style={{
+                fontSize: '13px',
                 lineHeight: '1.6'
               }}>
                 {selectedProduct.reasoning}
@@ -190,9 +191,9 @@ export const MainPanel: React.FC<MainPanelProps> = ({
             <div className="palantir-heading" style={{ marginBottom: '16px' }}>
               Additional Information
             </div>
-            
-            <div style={{ 
-              display: 'grid', 
+
+            <div style={{
+              display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
               gap: '20px'
             }}>
@@ -206,7 +207,7 @@ export const MainPanel: React.FC<MainPanelProps> = ({
                   </div>
                 </div>
               </div>
-              
+
               <div>
                 <div className="palantir-field-group">
                   <div className="palantir-caption" style={{ marginBottom: '4px' }}>
@@ -217,7 +218,7 @@ export const MainPanel: React.FC<MainPanelProps> = ({
                   </div>
                 </div>
               </div>
-              
+
               {selectedProduct.category && (
                 <div>
                   <div className="palantir-field-group">
@@ -230,7 +231,7 @@ export const MainPanel: React.FC<MainPanelProps> = ({
                   </div>
                 </div>
               )}
-              
+
               {selectedProduct.origin && (
                 <div>
                   <div className="palantir-field-group">
@@ -246,25 +247,25 @@ export const MainPanel: React.FC<MainPanelProps> = ({
             </div>
 
             <Divider style={{ margin: '20px 0' }} />
-            
+
             <div style={{ display: 'flex', gap: '12px' }}>
-              <Button 
-                text="Edit Classification" 
+              <Button
+                text="Edit Classification"
                 icon={IconNames.EDIT}
                 intent="primary"
               />
-              <Button 
-                text="Generate Report" 
+              <Button
+                text="Generate Report"
                 icon={IconNames.DOCUMENT}
                 minimal
               />
-              <Button 
-                text="Export Details" 
+              <Button
+                text="Export Details"
                 icon={IconNames.EXPORT}
                 minimal
               />
-              <Button 
-                text="Archive" 
+              <Button
+                text="Archive"
                 icon={IconNames.ARCHIVE}
                 minimal
                 intent="warning"
@@ -273,18 +274,18 @@ export const MainPanel: React.FC<MainPanelProps> = ({
           </Card>
         </div>
       ) : (
-        <div style={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          alignItems: 'center', 
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
           justifyContent: 'center',
           height: '60%'
         }}>
-          <span 
-            className="bp5-icon bp5-icon-shopping-cart" 
+          <span
+            className="bp5-icon bp5-icon-shopping-cart"
             style={{ marginBottom: '16px', color: '#5C7080', fontSize: '64px' }}
           />
-          <H3 className={Classes.HEADING} style={{ 
+          <H3 className={Classes.HEADING} style={{
             color: '#5C7080',
             marginBottom: '8px'
           }}>
@@ -295,6 +296,7 @@ export const MainPanel: React.FC<MainPanelProps> = ({
           </Text>
         </div>
       )}
+
     </div>
   );
 };

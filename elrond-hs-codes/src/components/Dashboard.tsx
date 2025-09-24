@@ -4,6 +4,7 @@ import { IconNames } from '@blueprintjs/icons';
 import { LeftSidebar } from './LeftSidebar';
 import { MainPanel } from './MainPanel';
 import { RightSidebar } from './RightSidebar';
+import { ProductQuestionnaire } from './ProductQuestionnaire';
 import { Product } from '../types';
 import { mockProducts } from '../mockData';
 
@@ -11,8 +12,9 @@ export const Dashboard: React.FC = () => {
   const [leftSidebarVisible, setLeftSidebarVisible] = useState(true);
   const [rightSidebarVisible, setRightSidebarVisible] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(mockProducts[0]);
-  const [products] = useState<Product[]>(mockProducts);
+  const [products, setProducts] = useState<Product[]>(mockProducts);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isQuestionnaireOpen, setIsQuestionnaireOpen] = useState(false);
 
   const toggleLeftSidebar = () => {
     setLeftSidebarVisible(!leftSidebarVisible);
@@ -26,7 +28,16 @@ export const Dashboard: React.FC = () => {
     setSelectedProduct(product);
   };
 
-  const filteredProducts = products.filter(product => 
+  const handleProductAdd = (newProduct: Product) => {
+    setProducts(prev => [newProduct, ...prev]);
+    setSelectedProduct(newProduct);
+  };
+
+  const handleAddProductClick = () => {
+    setIsQuestionnaireOpen(true);
+  };
+
+  const filteredProducts = products.filter(product =>
     product.identification.toLowerCase().includes(searchQuery.toLowerCase()) ||
     product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
     product.hsCode.includes(searchQuery)
@@ -47,15 +58,16 @@ export const Dashboard: React.FC = () => {
 
       {/* Left Sidebar */}
       <div className={`sidebar left ${leftSidebarVisible ? '' : 'hidden'}`}>
-        <LeftSidebar 
+        <LeftSidebar
           onToggle={toggleLeftSidebar}
           visible={leftSidebarVisible}
+          onAddProduct={handleAddProductClick}
         />
       </div>
 
       {/* Main Panel */}
       <div className="main-panel">
-        <MainPanel 
+        <MainPanel
           selectedProduct={selectedProduct}
           onLeftToggle={toggleLeftSidebar}
           onRightToggle={toggleRightSidebar}
@@ -66,7 +78,7 @@ export const Dashboard: React.FC = () => {
 
       {/* Right Sidebar */}
       <div className={`sidebar right ${rightSidebarVisible ? '' : 'hidden'}`}>
-        <RightSidebar 
+        <RightSidebar
           products={filteredProducts}
           selectedProduct={selectedProduct}
           onProductSelect={handleProductSelect}
@@ -87,6 +99,12 @@ export const Dashboard: React.FC = () => {
           small
         />
       )}
+
+      <ProductQuestionnaire
+        isOpen={isQuestionnaireOpen}
+        onClose={() => setIsQuestionnaireOpen(false)}
+        onComplete={handleProductAdd}
+      />
     </div>
   );
 };
