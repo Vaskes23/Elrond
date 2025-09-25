@@ -11,6 +11,7 @@ import {
   Intent
 } from '@blueprintjs/core';
 import { IconNames } from '@blueprintjs/icons';
+import { useNavigate } from 'react-router-dom';
 import { ChatMessage } from '../types';
 import { mockChatMessages } from '../mockData';
 import ElrondLogo from '../ElrondLogoWhite.png';
@@ -22,6 +23,7 @@ interface LeftSidebarProps {
 }
 
 export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible, onAddProduct }) => {
+  const navigate = useNavigate();
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(mockChatMessages);
   const [currentMessage, setCurrentMessage] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
@@ -96,8 +98,8 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible, onA
         minHeight: 0
       }}>
         {/* Header */}
-        <div className="palantir-field-group" style={{ 
-          display: 'flex', 
+        <div className="palantir-field-group" style={{
+          display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '12px 16px',
@@ -106,20 +108,33 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible, onA
           borderRadius: '6px',
           marginBottom: '20px'
         }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px'
-          }}>
-            <img 
-              src={ElrondLogo} 
-              alt="Elrond Logo" 
-              style={{ 
-                width: '32px', 
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            onClick={() => navigate('/')}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.02)';
+              e.currentTarget.style.opacity = '0.9';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.opacity = '1';
+            }}
+          >
+            <img
+              src={ElrondLogo}
+              alt="Elrond Logo"
+              style={{
+                width: '32px',
                 height: '32px',
                 objectFit: 'contain',
                 filter: 'brightness(1.2) contrast(1.1)'
-              }} 
+              }}
             />
             <div className="palantir-heading" style={{
               fontSize: '16px',
@@ -134,7 +149,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible, onA
               Elrond
             </div>
           </div>
-          
+
           <Button
             icon={IconNames.MENU_CLOSED}
             onClick={onToggle}
@@ -315,13 +330,13 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible, onA
                 transition: 'all 0.15s ease'
               }}>
                 {/* Header with sender and timestamp */}
-                <div style={{ 
-                  display: 'flex', 
+                <div style={{
+                  display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   marginBottom: '8px'
                 }}>
-                  <div className="palantir-code" style={{ 
+                  <div className="palantir-code" style={{
                     fontSize: '11px',
                     padding: '2px 6px',
                     fontWeight: '600'
@@ -334,7 +349,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible, onA
                 </div>
 
                 {/* Message content */}
-                <div className="palantir-body" style={{ 
+                <div className="palantir-body" style={{
                   fontSize: '11px',
                   color: '#B8C5D1',
                   lineHeight: '1.4',
