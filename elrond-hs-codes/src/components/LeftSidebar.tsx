@@ -22,6 +22,50 @@ interface LeftSidebarProps {
   onAddProduct: () => void;
 }
 
+/**
+ * Color palette constants for consistent theming
+ * Based on Blueprint.js dark theme with custom colors:
+ * - #111418: Primary dark background
+ * - #FFFFFF: Primary text/highlights
+ * - #1C2127: Secondary background
+ * - #5F6B7C: Borders and muted elements
+ * - #D3D8DE: Secondary text
+ */
+const THEME_COLORS = {
+  PRIMARY_BG: '#111418',
+  WHITE: '#FFFFFF',
+  SECONDARY_BG: '#1C2127',
+  BORDER: '#5F6B7C',
+  SECONDARY_TEXT: '#D3D8DE'
+} as const;
+
+/**
+ * Shared button styles for Quick Actions
+ */
+const ACTION_BUTTON_STYLES: React.CSSProperties = {
+  backgroundColor: THEME_COLORS.SECONDARY_BG,
+  border: `1px solid ${THEME_COLORS.BORDER}`,
+  color: THEME_COLORS.SECONDARY_TEXT,
+  justifyContent: 'flex-start',
+  padding: '12px 16px',
+  marginBottom: '8px',
+  transition: 'all 0.2s ease'
+};
+
+/**
+ * Hover effect handler for action buttons
+ */
+const handleButtonHover = (e: React.MouseEvent<HTMLElement>, isEntering: boolean) => {
+  const target = e.target as HTMLElement;
+  if (isEntering) {
+    target.style.backgroundColor = THEME_COLORS.BORDER;
+    target.style.color = THEME_COLORS.WHITE;
+  } else {
+    target.style.backgroundColor = THEME_COLORS.SECONDARY_BG;
+    target.style.color = THEME_COLORS.SECONDARY_TEXT;
+  }
+};
+
 export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible, onAddProduct }) => {
   const navigate = useNavigate();
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(mockChatMessages);
@@ -163,67 +207,40 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible, onA
           />
         </div>
 
-        {/* Quick Actions Section */}
+        {/* Quick Actions Section - Blueprint.js ButtonGroup with custom theming */}
         <Card
           className="palantir-field-group"
           style={{
             padding: '16px',
-            backgroundColor: '#111418',
-            border: '1px solid #1C2127'
+            backgroundColor: THEME_COLORS.PRIMARY_BG,
+            border: `1px solid ${THEME_COLORS.SECONDARY_BG}`
           }}
         >
 
-          <ButtonGroup
-            fill
-            vertical
-            style={{
-              gap: '8px'
-            }}
-          >
+          <ButtonGroup fill vertical style={{ gap: '8px' }}>
+            {/* Add Product Action */}
             <Button
               icon={IconNames.PLUS}
               text="Add New Product"
               onClick={onAddProduct}
-              style={{
-                backgroundColor: '#1C2127',
-                border: '1px solid #5F6B7C',
-                color: '#D3D8DE',
-                justifyContent: 'flex-start',
-                padding: '12px 16px',
-                marginBottom: '8px',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                const target = e.target as HTMLElement;
-                target.style.backgroundColor = '#5F6B7C';
-                target.style.color = '#FFFFFF';
-              }}
-              onMouseLeave={(e) => {
-                const target = e.target as HTMLElement;
-                target.style.backgroundColor = '#1C2127';
-                target.style.color = '#D3D8DE';
-              }}
+              style={ACTION_BUTTON_STYLES}
+              onMouseEnter={(e) => handleButtonHover(e, true)}
+              onMouseLeave={(e) => handleButtonHover(e, false)}
             />
 
+            {/* File Upload Action - wrapped in Card for consistent styling */}
             <Card
               style={{
                 padding: '12px 16px',
-                backgroundColor: '#1C2127',
-                border: '1px solid #5F6B7C',
+                backgroundColor: THEME_COLORS.SECONDARY_BG,
+                border: `1px solid ${THEME_COLORS.BORDER}`,
                 marginBottom: '8px'
               }}
             >
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px'
-              }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <span
                   className="bp5-icon bp5-icon-cloud-upload"
-                  style={{
-                    color: '#5F6B7C',
-                    fontSize: '16px'
-                  }}
+                  style={{ color: THEME_COLORS.BORDER, fontSize: '16px' }}
                 />
                 <div style={{ flex: 1 }}>
                   <FileInput
@@ -238,6 +255,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible, onA
               </div>
             </Card>
 
+            {/* Create Report Action */}
             <Button
               icon={IconNames.DOCUMENT}
               text="Create New Report"
@@ -248,24 +266,9 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible, onA
                   icon: IconNames.DOCUMENT,
                 });
               }}
-              style={{
-                backgroundColor: '#1C2127',
-                border: '1px solid #5F6B7C',
-                color: '#D3D8DE',
-                justifyContent: 'flex-start',
-                padding: '12px 16px',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => {
-                const target = e.target as HTMLElement;
-                target.style.backgroundColor = '#5F6B7C';
-                target.style.color = '#FFFFFF';
-              }}
-              onMouseLeave={(e) => {
-                const target = e.target as HTMLElement;
-                target.style.backgroundColor = '#1C2127';
-                target.style.color = '#D3D8DE';
-              }}
+              style={ACTION_BUTTON_STYLES}
+              onMouseEnter={(e) => handleButtonHover(e, true)}
+              onMouseLeave={(e) => handleButtonHover(e, false)}
             />
           </ButtonGroup>
         </Card>
