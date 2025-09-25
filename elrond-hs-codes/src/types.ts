@@ -1,3 +1,16 @@
+export type ProductStatus = 'classified' | 'pending' | 'needs_review';
+
+export interface CustomsCall {
+  id: string;
+  callDate: Date;
+  agentName: string;
+  customsOfficer?: string;
+  summary: string;
+  transcription: string;
+  confirmedHSCode?: string;
+  outcome: 'confirmed' | 'updated' | 'pending' | 'rejected';
+}
+
 export interface Product {
   id: string;
   identification: string;
@@ -7,6 +20,9 @@ export interface Product {
   reasoning: string;
   category?: string;
   origin?: string;
+  status: ProductStatus;
+  confidence?: number;
+  customsCall?: CustomsCall;
 }
 
 export interface ChatMessage {
@@ -51,4 +67,13 @@ export interface ProductQuestionnaire {
   answers: QuestionnaireAnswer[];
   suggestedHSCode?: HSCodeSuggestion;
   completedAt?: Date;
+}
+
+export interface DashboardMetrics {
+  totalProducts: number;
+  classified: number;
+  pending: number;
+  needsReview: number;
+  averageConfidence: number;
+  recentActivity: number;
 }

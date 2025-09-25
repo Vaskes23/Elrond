@@ -245,7 +245,10 @@ export const ProductQuestionnaire: React.FC<ProductQuestionnaireProps> = ({
             description: answers.function_purpose || 'Product description',
             reasoning: suggestedHSCode?.reasoning || 'Classification pending',
             category: suggestedHSCode?.category,
-            origin: answers.origin_country
+            origin: answers.origin_country,
+            status: suggestedHSCode?.confidence && suggestedHSCode.confidence > 85 ? 'classified' : 
+                   suggestedHSCode?.confidence && suggestedHSCode.confidence > 60 ? 'pending' : 'needs_review',
+            confidence: suggestedHSCode?.confidence || 50
         };
 
         onComplete(product);

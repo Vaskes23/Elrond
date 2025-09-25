@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Button, Classes } from '@blueprintjs/core';
-import { IconNames } from '@blueprintjs/icons';
+import { Classes } from '@blueprintjs/core';
 import { LeftSidebar } from './LeftSidebar';
 import { MainPanel } from './MainPanel';
 import { RightSidebar } from './RightSidebar';
@@ -13,7 +12,7 @@ export const Dashboard: React.FC = () => {
   const [rightSidebarVisible, setRightSidebarVisible] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(mockProducts[0]);
   const [products, setProducts] = useState<Product[]>(mockProducts);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery] = useState('');
   const [isQuestionnaireOpen, setIsQuestionnaireOpen] = useState(false);
 
   const toggleLeftSidebar = () => {
@@ -45,17 +44,6 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className={`dashboard ${Classes.DARK}`}>
-      
-
-      {/* Left Sidebar */}
-      <div className={`sidebar left ${leftSidebarVisible ? '' : 'hidden'}`}>
-        <LeftSidebar
-          onToggle={toggleLeftSidebar}
-          visible={leftSidebarVisible}
-          onAddProduct={handleAddProductClick}
-        />
-      </div>
-
       {/* Main Panel */}
       <div className="main-panel">
         <MainPanel
@@ -64,21 +52,24 @@ export const Dashboard: React.FC = () => {
           onRightToggle={toggleRightSidebar}
           leftSidebarVisible={leftSidebarVisible}
           rightSidebarVisible={rightSidebarVisible}
+          onAddProduct={handleAddProductClick}
+          products={products}
         />
       </div>
 
       {/* Right Sidebar */}
-      <div className={`sidebar right ${rightSidebarVisible ? '' : 'hidden'}`}>
+      <div className={`sidebar right animate-slide-in-right ${rightSidebarVisible ? '' : 'hidden'}`}>
         <RightSidebar
           products={filteredProducts}
           selectedProduct={selectedProduct}
           onProductSelect={handleProductSelect}
           onToggle={toggleRightSidebar}
           visible={rightSidebarVisible}
+          onAddProduct={handleAddProductClick}
         />
       </div>
 
-      
+
 
       <ProductQuestionnaire
         isOpen={isQuestionnaireOpen}
