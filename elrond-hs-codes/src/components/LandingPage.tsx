@@ -58,8 +58,8 @@ const LandingPage: React.FC = () => {
                         Recent Products
                     </Text>
 
-                    <div style={{ overflowY: 'auto' }}>
-                        {mockProducts.slice(0, 5).map((product) => (
+                    <div style={{ overflowY: 'auto'}}>
+                        {mockProducts.map((product) => (
                             <div
                                 key={product.id}
                                 style={{
