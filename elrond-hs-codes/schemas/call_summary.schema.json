@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://elrond.local/schemas/call_summary.schema.json",
+  "type": "object",
+  "required": ["call_metadata", "product", "candidates_considered", "officer_guidance", "confidence"],
+  "properties": {
+    "call_metadata": {"type": "object"},
+    "contact": {"type": "object"},
+    "product": {"type": "object"},
+    "candidates_considered": {"type": "array"},
+    "officer_guidance": {"type": "object"},
+    "next_steps": {"type": "array"},
+    "confidence": {"type": "object"},
+    "attachments": {"type": "object"},
+    "compliance_notes": {"type": "array"},
+    "fail_reasons": {"type": "array"}
+  }
+}
