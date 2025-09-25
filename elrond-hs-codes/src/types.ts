@@ -11,6 +11,13 @@ export interface CustomsCall {
   outcome: 'confirmed' | 'updated' | 'pending' | 'rejected';
 }
 
+export interface AlternativeHSCode {
+  code: string;
+  confidence: number;
+  reasoning: string;
+  category?: string;
+}
+
 export interface Product {
   id: string;
   identification: string;
@@ -23,6 +30,7 @@ export interface Product {
   status: ProductStatus;
   confidence?: number;
   customsCall?: CustomsCall;
+  alternativeHSCodes?: AlternativeHSCode[];
 }
 
 export interface ChatMessage {

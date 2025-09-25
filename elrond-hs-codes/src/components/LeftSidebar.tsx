@@ -98,11 +98,9 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({ onToggle, visible }) =
             }}
             onClick={() => navigate('/')}
             onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'scale(1.02)';
               e.currentTarget.style.opacity = '0.9';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
               e.currentTarget.style.opacity = '1';
             }}
           >

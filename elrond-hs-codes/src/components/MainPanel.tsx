@@ -20,6 +20,7 @@ interface MainPanelProps {
   leftSidebarVisible: boolean;
   rightSidebarVisible: boolean;
   onAddProduct: () => void;
+  onClearSelectedProduct: () => void;
   products: Product[];
 }
 
@@ -30,6 +31,7 @@ export const MainPanel: React.FC<MainPanelProps> = ({
   leftSidebarVisible,
   rightSidebarVisible,
   onAddProduct,
+  onClearSelectedProduct,
   products
 }) => {
 
@@ -111,21 +113,6 @@ export const MainPanel: React.FC<MainPanelProps> = ({
           </h1>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <Button
-            text="Settings"
-            icon={IconNames.COG}
-            minimal
-          />
-          {!rightSidebarVisible && (
-            <Button
-              icon={IconNames.MENU}
-              onClick={onRightToggle}
-              minimal
-              large
-            />
-          )}
-        </div>
       </div>
 
       {/* Dashboard Metrics Section */}
@@ -390,6 +377,153 @@ export const MainPanel: React.FC<MainPanelProps> = ({
                 </div>
               </Callout>
             </div>
+
+            {/* Alternative HS Codes Section */}
+            {selectedProduct.alternativeHSCodes && selectedProduct.alternativeHSCodes.length > 0 && (
+              <div style={{ marginBottom: '32px' }}>
+                <div className="gotham-subheader" style={{ marginBottom: '20px' }}>
+                  Alternative HS Code Suggestions
+                </div>
+
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr',
+                  gap: '16px'
+                }}>
+                  {/* Primary/Selected HS Code */}
+                  <div style={{
+                    padding: '20px',
+                    background: 'rgba(0, 153, 96, 0.1)',
+                    border: '2px solid rgba(0, 153, 96, 0.4)',
+                    borderRadius: '8px',
+                    position: 'relative'
+                  }}>
+                    <div style={{
+                      position: 'absolute',
+                      top: '-8px',
+                      left: '16px',
+                      background: '#3DCC91',
+                      color: '#000',
+                      padding: '4px 12px',
+                      borderRadius: '12px',
+                      fontSize: '10px',
+                      fontWeight: '700',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}>
+                      SELECTED
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                      <div>
+                        <div className="gotham-code" style={{
+                          fontSize: '18px',
+                          fontWeight: '700',
+                          color: '#3DCC91',
+                          marginBottom: '4px'
+                        }}>
+                          {selectedProduct.hsCode}
+                        </div>
+                        {selectedProduct.category && (
+                          <Tag
+                            intent="success"
+                            minimal
+                            style={{ fontSize: '11px' }}
+                          >
+                            {selectedProduct.category}
+                          </Tag>
+                        )}
+                      </div>
+                      <div style={{
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        color: '#3DCC91'
+                      }}>
+                        {selectedProduct.confidence}%
+                      </div>
+                    </div>
+
+                    <div className="gotham-body" style={{
+                      fontSize: '13px',
+                      lineHeight: '1.5',
+                      color: 'rgba(255, 255, 255, 0.9)'
+                    }}>
+                      {selectedProduct.reasoning}
+                    </div>
+                  </div>
+
+                  {/* Alternative HS Codes */}
+                  {selectedProduct.alternativeHSCodes.map((alternative, index) => (
+                    <div
+                      key={alternative.code}
+                      style={{
+                        padding: '16px',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        borderRadius: '8px',
+                        position: 'relative'
+                      }}
+                    >
+                      <div style={{
+                        position: 'absolute',
+                        top: '-6px',
+                        left: '12px',
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '50%',
+                        background: index === 0 ? '#FFB366' : '#8A9BA8',
+                        color: '#000',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '11px',
+                        fontWeight: '700'
+                      }}>
+                        {index + 2}
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                        <div>
+                          <div className="gotham-code" style={{
+                            fontSize: '16px',
+                            fontWeight: '600',
+                            color: '#ffffff',
+                            marginBottom: '4px'
+                          }}>
+                            {alternative.code}
+                          </div>
+                          {alternative.category && (
+                            <Tag
+                              intent={alternative.confidence > 75 ? 'warning' : 'none'}
+                              minimal
+                              style={{ fontSize: '10px' }}
+                            >
+                              {alternative.category}
+                            </Tag>
+                          )}
+                        </div>
+                        <div style={{
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          color: alternative.confidence > 75 ? '#FFB366' :
+                            alternative.confidence > 60 ? '#D3D8DE' : '#8A9BA8'
+                        }}>
+                          {alternative.confidence}%
+                        </div>
+                      </div>
+
+                      <div className="gotham-body" style={{
+                        fontSize: '12px',
+                        lineHeight: '1.4',
+                        color: 'rgba(255, 255, 255, 0.8)'
+                      }}>
+                        {alternative.reasoning}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Customs Call Section - Only show if confidence < 80% */}
             {selectedProduct.confidence && selectedProduct.confidence < 80 && (
@@ -723,30 +857,13 @@ export const MainPanel: React.FC<MainPanelProps> = ({
               </div>
               <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                 <Button
-                  text="Edit Classification"
-                  icon={IconNames.EDIT}
+                  text="Accept"
                   intent="primary"
                   large
+                  onClick={onClearSelectedProduct}
                 />
-                <Button
-                  text="Generate Report"
-                  icon={IconNames.DOCUMENT}
-                  minimal
-                  large
-                />
-                <Button
-                  text="Export Details"
-                  icon={IconNames.EXPORT}
-                  minimal
-                  large
-                />
-                <Button
-                  text="Archive"
-                  icon={IconNames.ARCHIVE}
-                  minimal
-                  intent="warning"
-                  large
-                />
+
+
               </div>
             </div>
           </Card>

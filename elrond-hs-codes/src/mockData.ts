@@ -11,7 +11,21 @@ export const mockProducts: Product[] = [
     category: 'Electronics',
     origin: 'China',
     status: 'classified',
-    confidence: 95
+    confidence: 95,
+    alternativeHSCodes: [
+      {
+        code: '8518.30.20',
+        confidence: 87,
+        reasoning: 'Could be classified as headphones and earphones under audio equipment, focusing on the primary audio reproduction function rather than communication aspect.',
+        category: 'Electronics'
+      },
+      {
+        code: '8517.62.00',
+        confidence: 78,
+        reasoning: 'Alternative classification as other apparatus for transmission or reception, considering the wireless communication capabilities.',
+        category: 'Electronics'
+      }
+    ]
   },
   {
     id: '2',
@@ -23,7 +37,21 @@ export const mockProducts: Product[] = [
     category: 'Apparel',
     origin: 'Bangladesh',
     status: 'classified',
-    confidence: 88
+    confidence: 88,
+    alternativeHSCodes: [
+      {
+        code: '6203.42.90',
+        confidence: 82,
+        reasoning: 'Could fall under other cotton trousers if the specific weight or construction details place it in a different subcategory.',
+        category: 'Apparel'
+      },
+      {
+        code: '6203.49.10',
+        confidence: 71,
+        reasoning: 'Possible classification under other textile materials if the denim blend contains significant non-cotton fibers.',
+        category: 'Apparel'
+      }
+    ]
   },
   {
     id: '3',
@@ -35,7 +63,21 @@ export const mockProducts: Product[] = [
     category: 'Electronics',
     origin: 'Taiwan',
     status: 'classified',
-    confidence: 97
+    confidence: 97,
+    alternativeHSCodes: [
+      {
+        code: '8471.30.02',
+        confidence: 91,
+        reasoning: 'Alternative classification based on specific technical specifications or memory configuration that might place it in a different laptop subcategory.',
+        category: 'Electronics'
+      },
+      {
+        code: '8471.41.01',
+        confidence: 73,
+        reasoning: 'Could be classified as a digital data processing unit if considered primarily as a processing system rather than portable computer.',
+        category: 'Electronics'
+      }
+    ]
   },
   {
     id: '4',
@@ -48,6 +90,20 @@ export const mockProducts: Product[] = [
     origin: 'France',
     status: 'needs_review',
     confidence: 72,
+    alternativeHSCodes: [
+      {
+        code: '3304.10.00',
+        confidence: 68,
+        reasoning: 'Could be classified as lip make-up preparations if the moisturizing properties extend to lip care functionality.',
+        category: 'Cosmetics'
+      },
+      {
+        code: '3304.30.00',
+        confidence: 65,
+        reasoning: 'Alternative classification as manicure or pedicure preparations if the anti-aging formula includes nail care components.',
+        category: 'Cosmetics'
+      }
+    ],
     customsCall: {
       id: 'call_002',
       callDate: new Date('2024-09-14T16:45:00'),
@@ -69,7 +125,21 @@ export const mockProducts: Product[] = [
     category: 'Furniture',
     origin: 'Italy',
     status: 'classified',
-    confidence: 91
+    confidence: 91,
+    alternativeHSCodes: [
+      {
+        code: '9401.61.00',
+        confidence: 85,
+        reasoning: 'Could be classified specifically as seats with wooden frames and upholstered with leather, focusing on the seating function.',
+        category: 'Furniture'
+      },
+      {
+        code: '9401.69.00',
+        confidence: 79,
+        reasoning: 'Alternative as other seats with wooden frames if the ergonomic features place it in a specialized seating category.',
+        category: 'Furniture'
+      }
+    ]
   },
   {
     id: '6',
@@ -82,6 +152,20 @@ export const mockProducts: Product[] = [
     origin: 'Spain',
     status: 'needs_review',
     confidence: 65,
+    alternativeHSCodes: [
+      {
+        code: '2002.90.00',
+        confidence: 61,
+        reasoning: 'Could be classified under other tomato preparations if the juice processing method affects classification.',
+        category: 'Food & Beverages'
+      },
+      {
+        code: '2009.90.00',
+        confidence: 58,
+        reasoning: 'Alternative classification under other fruit/vegetable juices if the organic certification changes categorization.',
+        category: 'Food & Beverages'
+      }
+    ],
     customsCall: {
       id: 'call_001',
       callDate: new Date('2024-09-15T14:30:00'),
@@ -103,7 +187,21 @@ export const mockProducts: Product[] = [
     category: 'Footwear',
     origin: 'Germany',
     status: 'pending',
-    confidence: 72
+    confidence: 72,
+    alternativeHSCodes: [
+      {
+        code: '6403.51.00',
+        confidence: 69,
+        reasoning: 'Could be classified as other footwear covering the ankle if the boot height affects classification category.',
+        category: 'Footwear'
+      },
+      {
+        code: '9506.62.00',
+        confidence: 64,
+        reasoning: 'Alternative classification as sporting footwear given the specialized hiking and waterproof features for outdoor sports.',
+        category: 'Sporting Goods'
+      }
+    ]
   }
 ];
 
