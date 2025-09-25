@@ -49,7 +49,7 @@ const LandingPage: React.FC = () => {
                     <Text style={{
                         color: '#FFFFFF',
                         fontSize: '14px',
-                        marginTop: '60px',
+                        // marginTop: '60px',
                         fontWeight: '500',
                         marginBottom: '16px',
                         textTransform: 'uppercase',

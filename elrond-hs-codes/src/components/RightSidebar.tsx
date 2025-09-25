@@ -112,59 +112,6 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
 
   return (
     <>
-      <OverlayToaster ref={toasterRef} position={Position.TOP} />
-      <div style={{
-        padding: '16px 12px',
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        minHeight: 0
-      }}>
-        {/* Header */}
-        <div className="palantir-field-group" style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '16px 20px',
-          background: 'rgba(0, 0, 0, 0.6)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          borderRadius: '8px',
-          marginBottom: '16px',
-          backdropFilter: 'blur(20px)'
-        }}>
-          <div className="gotham-subheader" style={{ margin: 0 }}>
-            Product History
-          </div>
-          <Button
-            icon={IconNames.MENU_CLOSED}
-            onClick={onToggle}
-            minimal
-            small
-          />
-        </div>
-
-        {/* Search */}
-        <div className="palantir-field-group">
-          <InputGroup
-            leftIcon={IconNames.SEARCH}
-            placeholder="Search products..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            rightElement={
-              searchQuery ? (
-                <Button
-                  icon={IconNames.CROSS}
-                  minimal
-                  onClick={() => setSearchQuery('')}
-                />
-              ) : undefined
-            }
-            fill
-          />
-        </div>
-
-
-
         {/* Quick Actions Section */}
         <Card className="gotham-card-hover" style={{
           padding: '24px',
@@ -247,6 +194,134 @@ const RightSidebar: React.FC<RightSidebarProps> = ({
             </div>
           )}
         </Card>
+
+        <OverlayToaster ref={toasterRef} position={Position.TOP} />
+      <div style={{
+        padding: '16px 12px',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        minHeight: 0
+      }}>
+        {/* System Overview - Compact */}
+        <div style={{ marginBottom: '16px' }}>
+          <div className="gotham-caption" style={{ marginBottom: '12px', textAlign: 'center', fontSize: '12px' }}>
+            System Overview
+          </div>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: '8px'
+          }}>
+            {/* Total Products */}
+            <div style={{
+              padding: '12px',
+              textAlign: 'center',
+              background: 'rgba(120, 120, 120, 0.1)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '6px',
+              backdropFilter: 'blur(20px)'
+            }}>
+              <div style={{
+                fontSize: '18px',
+                fontWeight: '600',
+                marginBottom: '4px',
+                color: '#ffffff'
+              }}>
+                {sortedProducts.length}
+              </div>
+              <div className="gotham-caption" style={{ fontSize: '9px' }}>
+                Total Products
+              </div>
+            </div>
+
+            {/* Classified */}
+            <div style={{
+              padding: '12px',
+              textAlign: 'center',
+              background: 'rgba(0, 153, 96, 0.1)',
+              border: '1px solid rgba(0, 153, 96, 0.3)',
+              borderRadius: '6px',
+              backdropFilter: 'blur(20px)'
+            }}>
+              <div style={{
+                fontSize: '18px',
+                fontWeight: '600',
+                marginBottom: '4px',
+                color: '#3DCC91'
+              }}>
+                {sortedProducts.filter(p => p.status === 'classified').length}
+              </div>
+              <div className="gotham-caption" style={{ fontSize: '9px' }}>
+                Classified
+              </div>
+            </div>
+
+            {/* Pending */}
+            <div style={{
+              padding: '12px',
+              textAlign: 'center',
+              background: 'rgba(217, 130, 43, 0.1)',
+              border: '1px solid rgba(217, 130, 43, 0.3)',
+              borderRadius: '6px',
+              backdropFilter: 'blur(20px)'
+            }}>
+              <div style={{
+                fontSize: '18px',
+                fontWeight: '600',
+                marginBottom: '4px',
+                color: '#FFB366'
+              }}>
+                {sortedProducts.filter(p => p.status === 'pending').length}
+              </div>
+              <div className="gotham-caption" style={{ fontSize: '9px' }}>
+                Pending
+              </div>
+            </div>
+
+            {/* Needs Review */}
+            <div style={{
+              padding: '12px',
+              textAlign: 'center',
+              background: 'rgba(219, 55, 55, 0.1)',
+              border: '1px solid rgba(219, 55, 55, 0.3)',
+              borderRadius: '6px',
+              backdropFilter: 'blur(20px)'
+            }}>
+              <div style={{
+                fontSize: '18px',
+                fontWeight: '600',
+                marginBottom: '4px',
+                color: '#FF7373'
+              }}>
+                {sortedProducts.filter(p => p.status === 'needs_review').length}
+              </div>
+              <div className="gotham-caption" style={{ fontSize: '9px' }}>
+                Need Review
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Search */}
+        <div className="palantir-field-group">
+          <InputGroup
+            leftIcon={IconNames.SEARCH}
+            placeholder="Search products..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            rightElement={
+              searchQuery ? (
+                <Button
+                  icon={IconNames.CROSS}
+                  minimal
+                  onClick={() => setSearchQuery('')}
+                />
+              ) : undefined
+            }
+            fill
+          />
+        </div>
 
         {/* Product List */}
         <div style={{ flex: 1, overflowY: 'auto' }}>

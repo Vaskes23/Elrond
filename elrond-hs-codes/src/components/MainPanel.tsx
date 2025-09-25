@@ -10,27 +10,16 @@ import {
   H1,
   H3
 } from '@blueprintjs/core';
-import { IconNames } from '@blueprintjs/icons';
 import { Product, DashboardMetrics } from '../types';
 
 interface MainPanelProps {
   selectedProduct: Product | null;
-  onLeftToggle: () => void;
-  onRightToggle: () => void;
-  leftSidebarVisible: boolean;
-  rightSidebarVisible: boolean;
-  onAddProduct: () => void;
   onClearSelectedProduct: () => void;
   products: Product[];
 }
 
 export const MainPanel: React.FC<MainPanelProps> = ({
   selectedProduct,
-  onLeftToggle,
-  onRightToggle,
-  leftSidebarVisible,
-  rightSidebarVisible,
-  onAddProduct,
   onClearSelectedProduct,
   products
 }) => {
@@ -92,150 +81,16 @@ export const MainPanel: React.FC<MainPanelProps> = ({
       overflowY: 'auto',
       background: 'linear-gradient(135deg, #111418 0%, #0F161C 100%)'
     }}>
-      {/* Header */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '24px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          {!leftSidebarVisible && (
-            <Button
-              icon={IconNames.MENU}
-              onClick={onLeftToggle}
-              minimal
-              large
-            />
-          )}
-          <h1 className="gotham-header" style={{ margin: 0 }}>
-            HS Code Classification Dashboard
-          </h1>
-        </div>
 
-      </div>
+      {/* Dashboard Metrics Section - Compact */}
+      <div style={{ marginBottom: '20px' }}>
 
-      {/* Dashboard Metrics Section */}
-      <div className="animate-fade-in-up" style={{ marginBottom: '32px' }}>
-        <div className="gotham-caption" style={{ marginBottom: '20px', textAlign: 'center' }}>
-          System Overview
-        </div>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '20px',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+          gap: '12px',
           marginBottom: '8px'
         }}>
-          {/* Total Products Metric */}
-          <Card className="metric-card status-total" style={{
-            padding: '24px',
-            textAlign: 'center',
-            backdropFilter: 'blur(20px)'
-          }}>
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: '2px',
-              background: 'linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.4) 50%, transparent 100%)'
-            }} />
-            <div className="metric-number" style={{
-              fontSize: '36px',
-              marginBottom: '8px'
-            }}>
-              {metrics.totalProducts}
-            </div>
-            <div className="gotham-caption" style={{ color: '#cccccc' }}>
-              Total Products
-            </div>
-          </Card>
-
-          {/* Classified Metric */}
-          <Card className="metric-card status-classified" style={{
-            padding: '24px',
-            textAlign: 'center',
-            backdropFilter: 'blur(20px)'
-          }}>
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: '2px',
-              background: 'linear-gradient(90deg, transparent 0%, rgba(0, 153, 96, 0.6) 50%, transparent 100%)'
-            }} />
-            <div className="metric-number" style={{
-              fontSize: '36px',
-              marginBottom: '8px'
-            }}>
-              {metrics.classified}
-            </div>
-            <div className="gotham-caption">
-              Classified
-            </div>
-          </Card>
-
-          {/* Pending Metric */}
-          <Card className="metric-card status-pending status-pulse" style={{
-            padding: '24px',
-            textAlign: 'center',
-            backdropFilter: 'blur(20px)'
-          }}>
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: '2px',
-              background: 'linear-gradient(90deg, transparent 0%, rgba(217, 130, 43, 0.6) 50%, transparent 100%)'
-            }} />
-            <div className="metric-number" style={{
-              fontSize: '36px',
-              marginBottom: '8px'
-            }}>
-              {metrics.pending}
-            </div>
-            <div className="gotham-caption">
-              Pending
-            </div>
-          </Card>
-
-          {/* Needs Review Metric */}
-          <Card className="metric-card status-needs-review status-pulse" style={{
-            padding: '24px',
-            textAlign: 'center',
-            backdropFilter: 'blur(20px)'
-          }}>
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: '2px',
-              background: 'linear-gradient(90deg, transparent 0%, rgba(219, 55, 55, 0.6) 50%, transparent 100%)'
-            }} />
-            <div className="metric-number" style={{
-              fontSize: '36px',
-              marginBottom: '8px'
-            }}>
-              {metrics.needsReview}
-            </div>
-            <div className="gotham-caption">
-              Need Review
-            </div>
-          </Card>
-        </div>
-
-        {/* Secondary Metrics Row */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: '16px',
-          marginTop: '16px'
-        }}>
-
-
         </div>
       </div>
 
@@ -297,7 +152,6 @@ export const MainPanel: React.FC<MainPanelProps> = ({
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <Tag
                     intent="primary"
-                    large
                     style={{ fontWeight: 'bold', fontSize: '18px', padding: '8px 16px' }}
                   >
                     HS: {selectedProduct.hsCode}
@@ -340,7 +194,7 @@ export const MainPanel: React.FC<MainPanelProps> = ({
                 lineHeight: '1.6',
                 padding: '20px',
                 background: 'rgba(255, 255, 255, 0.05)',
-                borderRadius: '8px',
+                borderRadius: '3px',
                 border: '1px solid rgba(255, 255, 255, 0.1)'
               }}>
                 {selectedProduct.description}
@@ -356,7 +210,7 @@ export const MainPanel: React.FC<MainPanelProps> = ({
                   backgroundColor: 'rgba(120, 120, 120, 0.1)',
                   border: '1px solid rgba(255, 255, 255, 0.1)',
                   padding: '24px',
-                  borderRadius: '8px'
+                  borderRadius: '3px'
                 }}>
                 <div style={{
                   marginBottom: '16px',
@@ -395,7 +249,7 @@ export const MainPanel: React.FC<MainPanelProps> = ({
                     padding: '20px',
                     background: 'rgba(0, 153, 96, 0.1)',
                     border: '2px solid rgba(0, 153, 96, 0.4)',
-                    borderRadius: '8px',
+                    borderRadius: '3px',
                     position: 'relative'
                   }}>
                     <div style={{
@@ -460,7 +314,7 @@ export const MainPanel: React.FC<MainPanelProps> = ({
                         padding: '16px',
                         background: 'rgba(255, 255, 255, 0.05)',
                         border: '1px solid rgba(255, 255, 255, 0.15)',
-                        borderRadius: '8px',
+                        borderRadius: '3px',
                         position: 'relative'
                       }}
                     >
@@ -537,7 +391,7 @@ export const MainPanel: React.FC<MainPanelProps> = ({
                       backgroundColor: 'rgba(217, 130, 43, 0.1)',
                       border: '1px solid rgba(217, 130, 43, 0.3)',
                       padding: '24px',
-                      borderRadius: '8px'
+                      borderRadius: '3px'
                     }}>
                     <div style={{
                       marginBottom: '16px',
@@ -599,7 +453,7 @@ export const MainPanel: React.FC<MainPanelProps> = ({
                             selectedProduct.customsCall.outcome === 'rejected' ? 'rgba(219, 55, 55, 0.3)' :
                               'rgba(255, 255, 255, 0.1)'}`,
                         padding: '24px',
-                        borderRadius: '8px'
+                        borderRadius: '3px'
                       }}>
                       <div style={{
                         marginBottom: '16px',
@@ -736,7 +590,7 @@ export const MainPanel: React.FC<MainPanelProps> = ({
                         backgroundColor: 'rgba(219, 55, 55, 0.1)',
                         border: '1px solid rgba(219, 55, 55, 0.3)',
                         padding: '24px',
-                        borderRadius: '8px'
+                        borderRadius: '3px'
                       }}>
                       <div className="gotham-subheader" style={{ margin: 0, marginBottom: '12px' }}>
                         Missing Call Data
@@ -859,7 +713,7 @@ export const MainPanel: React.FC<MainPanelProps> = ({
                 <Button
                   text="Accept"
                   intent="primary"
-                  large
+                  size="large"
                   onClick={onClearSelectedProduct}
                 />
 
