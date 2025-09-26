@@ -10,7 +10,7 @@ import {
   H1,
   H3
 } from '@blueprintjs/core';
-import { Product, DashboardMetrics } from '../types';
+import { Product } from '../types';
 
 interface MainPanelProps {
   selectedProduct: Product | null;
@@ -23,34 +23,6 @@ export const MainPanel: React.FC<MainPanelProps> = ({
   onClearSelectedProduct,
   products
 }) => {
-
-  // Calculate dashboard metrics
-  const calculateMetrics = (): DashboardMetrics => {
-    const totalProducts = products.length;
-    const classified = products.filter(p => p.status === 'classified').length;
-    const pending = products.filter(p => p.status === 'pending').length;
-    const needsReview = products.filter(p => p.status === 'needs_review').length;
-
-    const totalConfidence = products.reduce((sum, p) => sum + (p.confidence || 0), 0);
-    const averageConfidence = totalProducts > 0 ? Math.round(totalConfidence / totalProducts) : 0;
-
-    // Recent activity (products added in last 7 days)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const recentActivity = products.filter(p => p.dateAdded > sevenDaysAgo).length;
-
-    return {
-      totalProducts,
-      classified,
-      pending,
-      needsReview,
-      averageConfidence,
-      recentActivity
-    };
-  };
-
-  const metrics = calculateMetrics();
-
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', {

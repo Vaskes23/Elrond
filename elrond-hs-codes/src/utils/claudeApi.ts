@@ -49,8 +49,8 @@ export interface ClaudeAnalysisResponse {
     }>;
 }
 
-// Claude API configuration
-const CLAUDE_API_BASE_URL = 'https://api.anthropic.com/v1';
+// Local API configuration
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
 
 // Question generation prompt template
 const QUESTION_GENERATION_PROMPT = `
@@ -135,110 +135,58 @@ Provide your analysis in JSON format with this structure:
 export const generateQuestionsWithClaude = async (
     request: ClaudeQuestionGenerationRequest
 ): Promise<ClaudeQuestionGenerationResponse> => {
-    // Check if API key is available (this would be set via environment variable in production)
-    const apiKey = undefined; // In production: process.env.REACT_APP_CLAUDE_API_KEY
-    if (!apiKey) {
-        throw new Error('Claude API key not configured');
-    }
-
-    const prompt = QUESTION_GENERATION_PROMPT
-        .replace('{productType}', request.productType)
-        .replace('{function}', request.function)
-        .replace('{origin}', request.origin);
+    console.log('Calling local API for question generation:', request);
 
     try {
-        const response = await fetch(`${CLAUDE_API_BASE_URL}/messages`, {
+        const response = await fetch(`${API_BASE_URL}/api/questions/generate`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'x-api-key': apiKey,
-                'anthropic-version': '2023-06-01'
             },
-            body: JSON.stringify({
-                model: 'claude-3-sonnet-20240229',
-                max_tokens: 1000,
-                messages: [
-                    {
-                        role: 'user',
-                        content: prompt
-                    }
-                ]
-            })
+            body: JSON.stringify(request)
         });
 
         if (!response.ok) {
-            throw new Error(`Claude API error: ${response.status} ${response.statusText}`);
+            throw new Error(`Local API error: ${response.status} ${response.statusText}`);
         }
 
         const data = await response.json();
-        const content = data.content[0].text;
-
-        // Parse the JSON response
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-            throw new Error('Invalid response format from Claude');
-        }
-
-        return JSON.parse(jsonMatch[0]);
+        console.log('Local API response for questions:', data);
+        return data;
     } catch (error) {
-        console.error('Error calling Claude API:', error);
-        throw error;
+        console.error('Error calling local API for questions:', error);
+        console.log('Falling back to mock data...');
+        // Fallback to mock data if API unavailable
+        return generateQuestionsFallback(request);
     }
 };
 
 export const analyzeWithClaude = async (
     request: ClaudeAnalysisRequest
 ): Promise<ClaudeAnalysisResponse> => {
-    // Check if API key is available (this would be set via environment variable in production)
-    const apiKey = undefined; // In production: process.env.REACT_APP_CLAUDE_API_KEY
-    if (!apiKey) {
-        throw new Error('Claude API key not configured');
-    }
-
-    const prompt = ANALYSIS_PROMPT
-        .replace('{productType}', request.productType)
-        .replace('{function}', request.function)
-        .replace('{origin}', request.origin)
-        .replace('{materials}', Array.isArray(request.materials) ? request.materials.join(', ') : request.materials)
-        .replace('{targetAudience}', request.targetAudience);
+    console.log('Calling local API for classification:', request);
 
     try {
-        const response = await fetch(`${CLAUDE_API_BASE_URL}/messages`, {
+        const response = await fetch(`${API_BASE_URL}/api/classify`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'x-api-key': apiKey,
-                'anthropic-version': '2023-06-01'
             },
-            body: JSON.stringify({
-                model: 'claude-3-sonnet-20240229',
-                max_tokens: 2000,
-                messages: [
-                    {
-                        role: 'user',
-                        content: prompt
-                    }
-                ]
-            })
+            body: JSON.stringify(request)
         });
 
         if (!response.ok) {
-            throw new Error(`Claude API error: ${response.status} ${response.statusText}`);
+            throw new Error(`Local API error: ${response.status} ${response.statusText}`);
         }
 
         const data = await response.json();
-        const content = data.content[0].text;
-
-        // Parse the JSON response
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-            throw new Error('Invalid response format from Claude');
-        }
-
-        return JSON.parse(jsonMatch[0]);
+        console.log('Local API response for classification:', data);
+        return data;
     } catch (error) {
-        console.error('Error calling Claude API:', error);
-        throw error;
+        console.error('Error calling local API for classification:', error);
+        console.log('Falling back to mock data...');
+        // Fallback to mock data if API unavailable
+        return analyzeFallback(request);
     }
 };
 

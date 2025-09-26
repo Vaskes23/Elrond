@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Classes, Button } from '@blueprintjs/core';
+import { Classes } from '@blueprintjs/core';
 import { useNavigate } from 'react-router-dom';
 import { MainPanel } from './MainPanel';
 import { RightSidebar } from './RightSidebar';
@@ -9,16 +9,10 @@ import { mockProducts } from '../mockData';
 
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [leftSidebarVisible, setLeftSidebarVisible] = useState(true);
   const [rightSidebarVisible, setRightSidebarVisible] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [products, setProducts] = useState<Product[]>(mockProducts);
-  const [searchQuery] = useState('');
   const [isQuestionnaireOpen, setIsQuestionnaireOpen] = useState(false);
-
-  const toggleLeftSidebar = () => {
-    setLeftSidebarVisible(!leftSidebarVisible);
-  };
 
   const toggleRightSidebar = () => {
     setRightSidebarVisible(!rightSidebarVisible);
@@ -45,12 +39,6 @@ export const Dashboard: React.FC = () => {
     setSelectedProduct(null);
   };
 
-  const filteredProducts = products.filter(product =>
-    product.identification.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.hsCode.includes(searchQuery)
-  );
-
   return (
     <div className={`dashboard ${Classes.DARK}`}>
       {/* Main Panel */}
@@ -65,7 +53,7 @@ export const Dashboard: React.FC = () => {
       {/* Right Sidebar */}
       <div className={`sidebar right animate-slide-in-right ${rightSidebarVisible ? '' : 'hidden'}`}>
         <RightSidebar
-          products={filteredProducts}
+          products={products}
           selectedProduct={selectedProduct}
           onProductSelect={handleProductSelect}
           onToggle={toggleRightSidebar}
