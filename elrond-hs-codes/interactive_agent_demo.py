@@ -7,6 +7,8 @@ Modified to prevent agent from answering itself
 import os
 import ssl
 import certifi
+import json
+from datetime import datetime
 from pathlib import Path
 
 # Fix SSL certificate verification
@@ -30,8 +32,21 @@ from elevenlabs.conversational_ai.default_audio_interface import DefaultAudioInt
 def main():
     """Agent that waits for real user responses without self-answering"""
 
-    print("🎤 Interactive ElevenLabs Agent - No Self-Answering")
-    print("=" * 55)
+    print("🎤 Interactive ElevenLabs Agent - With Transcript Storage")
+    print("=" * 60)
+
+    # Setup transcript storage
+    session_id = f"elevenlabs-session-{int(datetime.now().timestamp() * 1000)}"
+    timestamp_str = datetime.now().strftime("%Y%m%d-%H%M%S")
+    transcript_file = Path("transcripts") / f"session-{timestamp_str}.json"
+
+    # Ensure transcripts directory exists
+    transcript_file.parent.mkdir(exist_ok=True)
+
+    print(f"📝 Transcript will be saved to: {transcript_file}")
+
+    # Initialize transcript storage
+    conversation_history = []
 
     # Get credentials
     agent_id = os.getenv("ELEVENLABS_AGENT_ID")
@@ -52,12 +67,27 @@ def main():
         print(f"❌ Client initialization failed: {e}")
         return
 
-    # Setup callbacks
+    # Setup callbacks with transcript storage
+    def save_transcript_entry(speaker, text):
+        """Save a transcript entry to file"""
+        entry = {
+            "call_id": session_id,
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "text": f"{speaker}: {text}"
+        }
+        conversation_history.append(entry)
+
+        # Append to file immediately
+        with open(transcript_file, 'a') as f:
+            f.write(json.dumps(entry) + '\n')
+
     def on_agent_response(response):
         print(f"🤖 Agent: {response}")
+        save_transcript_entry("Agent", response)
 
     def on_user_transcript(transcript):
         print(f"👤 User: {transcript}")
+        save_transcript_entry("User", transcript)
 
     # Create conversation with settings to prevent self-answering
     try:
@@ -131,6 +161,10 @@ def main():
         conversation_id = conversation.wait_for_session_end()
         print(f"✅ Session ended. ID: {conversation_id}")
 
+        # Final transcript summary
+        print(f"\n📝 Transcript saved: {transcript_file}")
+        print(f"📊 Total conversation turns: {len(conversation_history)}")
+
     except KeyboardInterrupt:
         print("\n👋 Session interrupted by user")
         try:
@@ -138,12 +172,21 @@ def main():
             print("✅ Session ended gracefully")
         except:
             pass
+
+        # Save transcript summary even on interruption
+        print(f"\n📝 Transcript saved: {transcript_file}")
+        print(f"📊 Total conversation turns: {len(conversation_history)}")
+
     except Exception as e:
         print(f"❌ Error during conversation: {e}")
         try:
             conversation.end_session()
         except:
             pass
+
+        # Save transcript summary even on error
+        print(f"\n📝 Transcript saved: {transcript_file}")
+        print(f"📊 Total conversation turns: {len(conversation_history)}")
 
 if __name__ == "__main__":
     main()
