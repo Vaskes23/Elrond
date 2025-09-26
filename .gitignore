@@ -1,0 +1,41 @@
+# Environment files - NEVER commit API keys!
+.env
+.env.local
+.env.development
+.env.production
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+api_env/
+venv/
+env/
+
+# Node modules
+node_modules/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite
+
+# Temporary files
+tmp/
+temp/

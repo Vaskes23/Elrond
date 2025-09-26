@@ -611,6 +611,20 @@ RESULT QUALITY CONTROL:
 Return ONLY the optimized semantic search query, nothing else."""
 
         try:
+            # ALWAYS log Claude API calls (detailed console output)
+            print(f"\n{'='*100}")
+            print(f"🤖 CLAUDE API CALL - SMART QUERY GENERATION")
+            print(f"{'='*100}")
+            print(f"REQUEST:")
+            print(f"Model: claude-sonnet-4-20250514")
+            print(f"Max tokens: 100")
+            print(f"Message content length: {len(prompt)} characters")
+            print(f"\nINPUT TO CLAUDE:")
+            print("-" * 80)
+            print(prompt)
+            print("-" * 80)
+            print("Sending request to Claude API...")
+
             if self.debug:
                 print(f"[DEBUG] Asking Claude to generate smart query (iteration {state.iteration})...")
                 
@@ -619,6 +633,15 @@ Return ONLY the optimized semantic search query, nothing else."""
                 max_tokens=150,  # Increased for more complex reasoning
                 messages=[{"role": "user", "content": prompt}]
             )
+
+            # Log Claude response
+            response_text = response.content[0].text.strip()
+            print(f"\nCLAUDE RESPONSE:")
+            print("-" * 80)
+            print(response_text)
+            print("-" * 80)
+            print(f"Response length: {len(response_text)} characters")
+            print("=" * 100 + "\n")
             
             smart_query = response.content[0].text.strip()
             
@@ -1025,11 +1048,34 @@ Be short, polite, and actionable."""
             print(f"[DEBUG] {'-'*50}")
 
         try:
+            # ALWAYS log Claude API calls (detailed console output)
+            print(f"\n{'='*100}")
+            print(f"🤖 CLAUDE API CALL - QUESTION GENERATION")
+            print(f"{'='*100}")
+            print(f"REQUEST:")
+            print(f"Model: claude-sonnet-4-20250514")
+            print(f"Max tokens: 500")
+            print(f"Message content length: {len(prompt)} characters")
+            print(f"\nINPUT TO CLAUDE:")
+            print("-" * 80)
+            print(prompt)
+            print("-" * 80)
+            print("Sending request to Claude API...")
+
             response = self.client.messages.create(
                 model="claude-3-haiku-20240307",  # Faster model as requested
                 max_tokens=500,  # Increased from 300 to allow complete responses
                 messages=[{"role": "user", "content": prompt}]
             )
+
+            # Log Claude response
+            response_text = response.content[0].text.strip()
+            print(f"\nCLAUDE RESPONSE:")
+            print("-" * 80)
+            print(response_text)
+            print("-" * 80)
+            print(f"Response length: {len(response_text)} characters")
+            print("=" * 100 + "\n")
             
             raw_response = response.content[0].text.strip()
             
