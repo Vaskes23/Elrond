@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { MainPanel } from './MainPanel';
 import { RightSidebar } from './RightSidebar';
 import { ProductQuestionnaire } from './ProductQuestionnaire';
+import { BackendProductQuestionnaire } from './BackendProductQuestionnaire';
 import { Product } from '../types';
 import { mockProducts } from '../mockData';
 
@@ -15,6 +16,7 @@ export const Dashboard: React.FC = () => {
   const [products, setProducts] = useState<Product[]>(mockProducts);
   const [searchQuery] = useState('');
   const [isQuestionnaireOpen, setIsQuestionnaireOpen] = useState(false);
+  const [useBackendClassification, setUseBackendClassification] = useState(true);
 
   const toggleLeftSidebar = () => {
     setLeftSidebarVisible(!leftSidebarVisible);
@@ -77,11 +79,19 @@ export const Dashboard: React.FC = () => {
 
 
 
-      <ProductQuestionnaire
-        isOpen={isQuestionnaireOpen}
-        onClose={() => setIsQuestionnaireOpen(false)}
-        onComplete={handleProductAdd}
-      />
+      {useBackendClassification ? (
+        <BackendProductQuestionnaire
+          isOpen={isQuestionnaireOpen}
+          onClose={() => setIsQuestionnaireOpen(false)}
+          onComplete={handleProductAdd}
+        />
+      ) : (
+        <ProductQuestionnaire
+          isOpen={isQuestionnaireOpen}
+          onClose={() => setIsQuestionnaireOpen(false)}
+          onComplete={handleProductAdd}
+        />
+      )}
     </div>
   );
 };

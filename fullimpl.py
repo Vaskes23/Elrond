@@ -220,8 +220,8 @@ class HSCodeSemanticSearch:
         
         print(f"✓ Computed and cached embeddings for {len(self.embeddings)} HS codes")
     
-    def search_hs_codes(self, query_context: str, similarity_threshold: float = 0.6) -> List[HSCode]:
-        """Search HS codes using semantic similarity"""
+    def search_hs_codes(self, query_context: str, similarity_threshold: float = 0.6, qa_history: List[Dict[str, str]] = None) -> List[HSCode]:
+        """Search HS codes using semantic similarity with enhanced keyword matching and negative punishment"""
         if self.embeddings is None:
             raise ValueError("Embeddings not computed. Call compute_embeddings() first.")
         
@@ -229,8 +229,12 @@ class HSCodeSemanticSearch:
             print(f"[DEBUG] HSCodeSemanticSearch.search_hs_codes() called")
             print(f"[DEBUG] Query context: '{query_context}'")
             print(f"[DEBUG] Similarity threshold: {similarity_threshold}")
+            print(f"[DEBUG] Q&A history entries: {len(qa_history) if qa_history else 0}")
         
         self.load_model()
+        
+        # Store Q&A history for contradiction penalty calculation
+        self._current_qa_history = qa_history or []
         
         # Encode query
         query_embedding = self.model.encode([query_context])
@@ -238,25 +242,43 @@ class HSCodeSemanticSearch:
         # Compute semantic similarities
         semantic_similarities = cosine_similarity(query_embedding, self.embeddings)[0]
         
-        # Apply keyword boosting for better relevance
-        query_words = query_context.lower().split()
+        # Enhanced keyword processing with plural support and negative punishment
+        query_words = self._extract_query_features(query_context.lower())
         
         for i, node in enumerate(self.leaf_nodes):
-            keyword_boost = 0
-            for word in query_words:
-                if len(word) > 2:  # Ignore very short words
-                    if word in node.name.lower():
-                        keyword_boost += 0.3  # Strong boost for name match
-                    elif word in node.get_full_path().lower():
-                        keyword_boost += 0.2  # Medium boost for path match
+            node_text_lower = node.name.lower()
+            node_path_lower = node.get_full_path().lower()
             
-            # Apply boost (capped at 0.5)
-            semantic_similarities[i] = min(1.0, semantic_similarities[i] + min(keyword_boost, 0.5))
+            # Calculate keyword boost with plural support
+            keyword_boost = self._calculate_keyword_boost(query_words, node_text_lower, node_path_lower)
+            
+            # Calculate negative keyword punishment
+            negative_penalty = self._calculate_negative_penalty(query_words, node_text_lower, node_path_lower)
+            
+            # NEW: Add Q&A contradiction penalty - this catches cases like cider apple contradictions
+            if self._current_qa_history:
+                qa_penalty = self._calculate_qa_contradiction_penalty(self._current_qa_history, node_text_lower, node_path_lower)
+                negative_penalty += qa_penalty
+            
+            # Apply adjustments (boost capped at 0.4, penalty can be severe)
+            final_score = semantic_similarities[i] + min(keyword_boost, 0.4) - negative_penalty
+            # CRITICAL: Cap similarity scores to never exceed 100% (1.0) and never go below 0
+            semantic_similarities[i] = max(0.0, min(1.0, final_score))
+            
+            if self.debug and (keyword_boost > 0 or negative_penalty > 0):
+                qa_penalty_part = self._calculate_qa_contradiction_penalty(self._current_qa_history, node_text_lower, node_path_lower) if self._current_qa_history else 0
+                print(f"[DEBUG] {node.code[:10]}: base={semantic_similarities[i]:.3f}, boost=+{keyword_boost:.3f}, penalty=-{negative_penalty:.3f} (qa=-{qa_penalty_part:.3f}), final={final_score:.3f}")
+        
+        # Clean up
+        self._current_qa_history = None
+        
+        # Apply HARSHER filtering - require higher scores for many results
+        adjusted_threshold = self._get_adaptive_threshold(semantic_similarities, similarity_threshold)
         
         # Filter by threshold and convert to HSCode objects
         results = []
         for i, score in enumerate(semantic_similarities):
-            if score >= similarity_threshold:
+            if score >= adjusted_threshold:
                 node = self.leaf_nodes[i]
                 hs_code = HSCode(
                     code=node.code,
@@ -268,12 +290,249 @@ class HSCodeSemanticSearch:
         # Sort by similarity score (highest first)
         results = sorted(results, key=lambda x: x.similarity_score, reverse=True)
         
+        # Apply harsh result filtering - if too many high-scoring results, be more selective
+        results = self._apply_harsh_filtering(results, query_context)
+        
         if self.debug:
-            print(f"[DEBUG] Found {len(results)} codes above threshold:")
+            print(f"[DEBUG] Found {len(results)} codes above threshold (adjusted: {adjusted_threshold:.3f}):")
             for code in results[:5]:  # Show top 5 in debug
                 print(f"[DEBUG]   {code.code}: {code.similarity_score:.3f}")
         
         return results
+    
+    def _extract_query_features(self, query_lower: str) -> Dict[str, List[str]]:
+        """Extract positive and negative keywords from query with plural support"""
+        import re
+        
+        words = query_lower.split()
+        
+        # Define negative indicators
+        negative_indicators = {
+            'not', 'without', 'except', 'excluding', 'no', 'non', 'anti', 'un'
+        }
+        
+        # Technology contradictions - these should heavily penalize each other
+        tech_contradictions = {
+            'oled': ['lcd', 'led', 'plasma', 'crt'],
+            'lcd': ['oled', 'plasma', 'crt'],
+            'led': ['oled', 'lcd', 'plasma', 'crt'],
+            'wireless': ['wired', 'cable', 'ethernet'],
+            'wired': ['wireless', 'wifi', 'bluetooth'],
+            'digital': ['analog', 'analogue'],
+            'analog': ['digital'],
+            'organic': ['synthetic', 'artificial'],
+            'synthetic': ['organic', 'natural'],
+            'automatic': ['manual'],
+            'manual': ['automatic', 'auto']
+        }
+        
+        positive_words = []
+        negative_words = []
+        contradiction_pairs = []
+        
+        for i, word in enumerate(words):
+            # Clean word
+            word = re.sub(r'[^\w]', '', word)
+            if len(word) < 2:
+                continue
+                
+            # Check for explicit negative indicators
+            if i > 0 and words[i-1] in negative_indicators:
+                negative_words.append(word)
+                # Add plural forms
+                negative_words.extend(self._get_plural_forms(word))
+            else:
+                positive_words.append(word)
+                # Add plural forms
+                positive_words.extend(self._get_plural_forms(word))
+                
+                # Check for contradictions
+                if word in tech_contradictions:
+                    contradiction_pairs.append((word, tech_contradictions[word]))
+        
+        return {
+            'positive': positive_words,
+            'negative': negative_words,
+            'contradictions': contradiction_pairs
+        }
+    
+    def _get_plural_forms(self, word: str) -> List[str]:
+        """Generate plural/singular variants of a word"""
+        variants = []
+        
+        # Simple plural rules
+        if word.endswith('s') and len(word) > 3:
+            variants.append(word[:-1])  # Remove 's'
+        elif word.endswith('es') and len(word) > 4:
+            variants.append(word[:-2])  # Remove 'es'
+        elif word.endswith('ies') and len(word) > 5:
+            variants.append(word[:-3] + 'y')  # berries -> berry
+        else:
+            variants.append(word + 's')  # Add 's'
+            if word.endswith('y'):
+                variants.append(word[:-1] + 'ies')  # berry -> berries
+            if word.endswith(('sh', 'ch', 'x', 'z', 'o')):
+                variants.append(word + 'es')  # box -> boxes
+        
+        return variants
+    
+    def _calculate_keyword_boost(self, query_words: Dict[str, List[str]], node_text: str, node_path: str) -> float:
+        """Calculate keyword boost with plural support"""
+        boost = 0.0
+        
+        for word in query_words['positive']:
+            if len(word) > 2:
+                # Exact match in name gets highest boost
+                if word in node_text:
+                    boost += 0.25
+                # Match in path gets medium boost
+                elif word in node_path:
+                    boost += 0.15
+                # Partial match gets small boost
+                elif any(word in part for part in node_text.split()):
+                    boost += 0.1
+                    
+        return boost
+    
+    def _calculate_negative_penalty(self, query_words: Dict[str, List[str]], node_text: str, node_path: str) -> float:
+        """Calculate penalty for negative keywords and contradictions"""
+        penalty = 0.0
+        
+        # Penalty for explicit negative keywords
+        for word in query_words['negative']:
+            if len(word) > 2:
+                if word in node_text:
+                    penalty += 0.4  # Heavy penalty for negative matches
+                elif word in node_path:
+                    penalty += 0.2
+        
+        # HARSH penalty for contradictions (e.g., OLED vs LCD)
+        for positive_word, contradictory_words in query_words['contradictions']:
+            for contradiction in contradictory_words:
+                if contradiction in node_text or contradiction in node_path:
+                    penalty += 0.6  # Very heavy penalty for contradictions
+                    if self.debug:
+                        print(f"[DEBUG] CONTRADICTION PENALTY: {positive_word} vs {contradiction} in {node_text[:50]}")
+        
+        return penalty
+    
+    def _calculate_qa_contradiction_penalty(self, qa_history: List[Dict[str, str]], node_text: str, node_path: str) -> float:
+        """Calculate penalty based on Q&A history contradictions - this catches cases like cider apple example"""
+        penalty = 0.0
+        combined_node_text = (node_text + " " + node_path).lower()
+        
+        for qa in qa_history:
+            question = qa['question'].lower()
+            answer = qa['answer'].lower()
+            
+            # Detect contradictions based on Q&A patterns
+            
+            # Pattern 1: User said NO to something but candidate description contains it
+            if ("are these" in question or "is this" in question or "do you have" in question):
+                if answer in ['no', 'not', 'none', 'never']:
+                    # Extract what user said no to
+                    no_terms = self._extract_negated_terms(question, answer)
+                    for term in no_terms:
+                        if term in combined_node_text:
+                            penalty += 0.8  # VERY heavy penalty for direct contradiction
+                            if self.debug:
+                                print(f"[DEBUG] Q&A CONTRADICTION: User said NO to '{term}' but found in '{node_text[:50]}'")
+                
+                # Pattern 2: User specified something specific but candidate is different
+                elif "or" in question:  # e.g., "fresh apples or dried apples" -> "fresh"
+                    # Extract the alternatives and what user chose
+                    alternatives = self._extract_alternatives(question)
+                    chosen = answer.strip()
+                    rejected = [alt for alt in alternatives if alt != chosen and alt not in chosen]
+                    
+                    for reject in rejected:
+                        if reject in combined_node_text:
+                            penalty += 0.7  # Heavy penalty for choosing wrong alternative
+                            if self.debug:
+                                print(f"[DEBUG] ALTERNATIVE CONTRADICTION: User chose '{chosen}' over '{reject}' but found '{reject}' in '{node_text[:50]}'")
+            
+            # Pattern 3: User said something is NOT bulk/seasonal/etc but candidate specifies it
+            if "bulk" in answer and "no" in answer:
+                if "bulk" in combined_node_text:
+                    penalty += 0.9  # Extremely heavy penalty
+                    if self.debug:
+                        print(f"[DEBUG] BULK CONTRADICTION: User said not bulk but found in '{node_text[:50]}'")
+            
+            # Pattern 4: User specified time period but candidate has different time period
+            if "september" in combined_node_text or "december" in combined_node_text:
+                if "no" in answer and ("september" in question or "december" in question):
+                    penalty += 0.8  # Heavy penalty for seasonal contradiction
+                    if self.debug:
+                        print(f"[DEBUG] SEASONAL CONTRADICTION: User rejected seasonal but found seasonal in '{node_text[:50]}'")
+            
+            # Pattern 5: User specified type but candidate is different type
+            if "cider" in combined_node_text:
+                if "regular" in answer or "eating" in answer or ("not" in answer and "cider" in question):
+                    penalty += 0.9  # Extremely heavy penalty for cider contradiction
+                    if self.debug:
+                        print(f"[DEBUG] CIDER CONTRADICTION: User rejected cider but found cider in '{node_text[:50]}'")
+        
+        return penalty
+    
+    def _extract_negated_terms(self, question: str, answer: str) -> List[str]:
+        """Extract terms that the user said no to"""
+        terms = []
+        
+        # Simple extraction - look for key terms in question
+        question_words = question.lower().split()
+        important_terms = ['bulk', 'cider', 'dried', 'seasonal', 'september', 'december', 'shipped', 'shipping']
+        
+        for term in important_terms:
+            if term in question_words:
+                terms.append(term)
+        
+        return terms
+    
+    def _extract_alternatives(self, question: str) -> List[str]:
+        """Extract alternatives from questions like 'X or Y'"""
+        alternatives = []
+        
+        if " or " in question:
+            # Simple extraction - get words around "or"
+            parts = question.lower().split(" or ")
+            if len(parts) >= 2:
+                # Extract last word of first part and first word of second part
+                first_alt = parts[0].split()[-1] if parts[0].split() else ""
+                second_alt = parts[1].split()[0] if parts[1].split() else ""
+                
+                if first_alt and len(first_alt) > 2:
+                    alternatives.append(first_alt)
+                if second_alt and len(second_alt) > 2:
+                    alternatives.append(second_alt)
+        
+        return alternatives
+    
+    def _get_adaptive_threshold(self, similarities: np.ndarray, base_threshold: float) -> float:
+        """Get adaptive threshold - be harsher when too many results have high scores"""
+        high_scores = np.sum(similarities >= base_threshold)
+        
+        # If too many results above threshold, raise it
+        if high_scores > 50:
+            # Many high scores suggests the query is too generic
+            return min(0.8, base_threshold + 0.2)
+        elif high_scores > 20:
+            return min(0.75, base_threshold + 0.1)
+        else:
+            return base_threshold
+    
+    def _apply_harsh_filtering(self, results: List[HSCode], query_context: str) -> List[HSCode]:
+        """Apply harsh filtering to reduce false positives"""
+        if len(results) <= 10:
+            return results
+        
+        # If too many results, only keep the ones with significant score gaps
+        if len(results) > 30:
+            # Keep only results within 0.15 of the top score
+            top_score = results[0].similarity_score
+            filtered = [r for r in results if r.similarity_score >= (top_score - 0.15)]
+            return filtered[:20]  # Max 20 results
+        
+        return results[:25]  # Max 25 results otherwise
 
 class ClaudeQuestionGenerator:
     """Handles Claude API integration for question generation"""
@@ -281,9 +540,10 @@ class ClaudeQuestionGenerator:
     def __init__(self, api_key: str, debug=False):
         self.client = anthropic.Anthropic(api_key=api_key)
         self.debug = debug
+        self.embedding_service = None  # Will be set by HSCodeClassifier
     
     def generate_smart_query(self, state: ConversationState, current_candidates: List[HSCode] = None) -> str:
-        """Let Claude AI take full control of semantic search query generation"""
+        """Let Claude AI take full control of semantic search query generation with aggressive rewriting"""
         
         # Build context for Claude to understand the situation
         qa_context = "\n".join([
@@ -292,94 +552,237 @@ class ClaudeQuestionGenerator:
         ]) if state.qa_history else "None"
         
         candidates_context = ""
+        relevance_status = "UNKNOWN"
         if current_candidates:
+            is_relevant = self._candidates_seem_relevant(state.product_description, current_candidates)
+            relevance_status = "RELEVANT" if is_relevant else "COMPLETELY IRRELEVANT"
             candidates_context = f"""
 
-CURRENT SEARCH RESULTS:
-{chr(10).join([f"- {code.code}: {code.description}" for code in current_candidates[:5]])}
+CURRENT SEARCH RESULTS ({len(current_candidates)} found):
+{chr(10).join([f"- {code.code}: {code.description[:80]}..." for code in current_candidates[:5]])}
 
-These results appear to be {'RELEVANT' if self._candidates_seem_relevant(state.product_description, current_candidates) else 'COMPLETELY IRRELEVANT'} to the product."""
+RELEVANCE ASSESSMENT: These results are {relevance_status} to the product.
+{'✓ Results seem appropriate for the query.' if is_relevant else '✗ Results are completely wrong - query needs major rewrite!'}"""
+
+        # Determine iteration context
+        iteration_context = ""
+        if state.iteration > 1:
+            if relevance_status == "COMPLETELY IRRELEVANT":
+                iteration_context = f"\n\nITERATION {state.iteration} - PREVIOUS QUERY FAILED: The previous search query produced completely irrelevant results. You MUST completely rewrite the query using different terminology."
+            elif len(current_candidates or []) > 30:
+                iteration_context = f"\n\nITERATION {state.iteration} - TOO MANY RESULTS: Previous query was too generic ({len(current_candidates)} results). Make the query more specific and precise."
         
-        prompt = f"""You are controlling the semantic search query for HS code classification.
+        prompt = f"""You have FULL CONTROL over semantic search for HS code classification. Your query determines what results the user sees.
 
-ORIGINAL PRODUCT: {state.product_description}
+ORIGINAL USER INPUT: "{state.product_description}"
 
-PREVIOUS Q&A:
+PREVIOUS Q&A CONTEXT:
 {qa_context}
-
 {candidates_context}
+{iteration_context}
 
-Your task: Generate the BEST semantic search query that will find relevant HS codes for this product.
+YOUR MISSION: Generate a semantic search query that will find the RIGHT HS codes for this product.
 
-CRITICAL RULES:
-1. Focus on the ACTUAL PRODUCT, not packaging/containers
-2. Use professional trade/customs terminology
-3. If previous results were irrelevant, completely rewrite the query
-4. Ignore user gibberish - extract the real product intent
-5. For beverages in containers, focus on the beverage type
+AGGRESSIVE REWRITING RULES:
+1. IGNORE gibberish/test phrases - extract the REAL product
+2. If user says "apple fruit" but only wants apple, use just "apple" (avoid triggering all fruits)
+3. If previous results were wrong, use COMPLETELY DIFFERENT terminology
+4. Focus on the CORE PRODUCT, ignore packaging/containers
+5. Use precise trade terminology, not consumer language
+6. If user input is vague, make educated guesses based on context
 
-Examples:
-- "lemonade in glass bottle" → "lemon flavored beverage"
-- "organic pineapple juice plastic bottle" → "pineapple juice beverage"
-- "hello world test" + "organic pineapple juice" → "pineapple fruit juice"
+EXAMPLES OF AGGRESSIVE REWRITING:
+- "hello world apple test" → "apple fruit fresh"
+- "jibberish oled monitor stuff" → "oled display monitor"
+- "apple fruit in container" → "apple fruit" (NOT "fruit" - that's too broad)
+- "random text lcd screen" → "lcd display screen"
+- "test monitor display oled thing" → "oled monitor display"
 
-Return ONLY the semantic search query text, nothing else."""
+NEGATIVE KEYWORD HANDLING:
+- If query mentions "oled", avoid "lcd" terms
+- If query mentions "wireless", avoid "wired" terms
+- Be specific to avoid contradictory results
+
+RESULT QUALITY CONTROL:
+- If this is iteration {state.iteration} and previous results were irrelevant, try a FUNDAMENTALLY different approach
+- If too many results (>30), make query MORE specific
+- If no results, make query LESS specific
+
+Return ONLY the optimized semantic search query, nothing else."""
 
         try:
             if self.debug:
-                print(f"[DEBUG] Asking Claude to generate smart query...")
+                print(f"[DEBUG] Asking Claude to generate smart query (iteration {state.iteration})...")
                 
             response = self.client.messages.create(
-                model="claude-sonnet-4-20250514",
-                max_tokens=100,
+                model="claude-3-haiku-20240307",  # Faster model as requested
+                max_tokens=150,  # Increased for more complex reasoning
                 messages=[{"role": "user", "content": prompt}]
             )
             
             smart_query = response.content[0].text.strip()
             
+            # Validate and clean the query
+            smart_query = self._validate_and_clean_query(smart_query, state.product_description)
+            
             if self.debug:
                 print(f"[DEBUG] Claude generated query: '{smart_query}'")
+                if smart_query != state.product_description:
+                    print(f"[DEBUG] Query transformation: '{state.product_description}' → '{smart_query}'")
             
-            return smart_query if smart_query else state.product_description
+            return smart_query
             
         except Exception as e:
             if self.debug:
                 print(f"[DEBUG] Claude query generation failed: {e}")
-            return state.product_description
+            return self._fallback_query_generation(state.product_description)
+    
+    def _validate_and_clean_query(self, query: str, original: str) -> str:
+        """Validate and clean Claude's generated query"""
+        if not query or len(query.strip()) < 3:
+            return original
+            
+        # Remove common junk that Claude might include
+        query = query.strip()
+        junk_patterns = [
+            r'^(query|search):\s*',
+            r'^semantic search query:\s*',
+            r'^optimized query:\s*',
+            r'"([^"]*)"$',  # Remove quotes if entire query is quoted
+        ]
+        
+        import re
+        for pattern in junk_patterns:
+            query = re.sub(pattern, r'\1' if '(' in pattern else '', query, flags=re.IGNORECASE).strip()
+        
+        # Ensure it's not longer than reasonable
+        if len(query) > 100:
+            words = query.split()
+            query = ' '.join(words[:15])  # Keep first 15 words
+            
+        return query if query else original
+    
+    def _fallback_query_generation(self, original: str) -> str:
+        """Generate fallback query when Claude fails"""
+        # Simple fallback logic
+        original_lower = original.lower()
+        
+        # Extract meaningful words (ignore common junk)
+        junk_words = {'test', 'hello', 'world', 'example', 'demo', 'random', 'stuff', 'thing', 'jibberish', 'gibberish'}
+        words = [word for word in original_lower.split() if word not in junk_words and len(word) > 2]
+        
+        if words:
+            return ' '.join(words)
+        else:
+            return original
     
     def _candidates_seem_relevant(self, product_description: str, candidates: List[HSCode]) -> bool:
-        """Check if candidates are obviously wrong for the product"""
+        """Enhanced relevance detection - check if candidates are obviously wrong for the product"""
         if not candidates:
             return False
             
         product_lower = product_description.lower()
         
-        # Define product categories and their expected HS chapter ranges
+        # Enhanced product categories and their expected HS chapter ranges
         product_indicators = {
-            'food_beverage': (['juice', 'drink', 'beverage', 'lemonade', 'soda', 'water', 'coffee', 'tea'], ['20', '21', '22']),
-            'electronics': (['phone', 'computer', 'device', 'electronic'], ['85', '90', '84']),
-            'clothing': (['shirt', 'pants', 'clothing', 'apparel'], ['61', '62', '63']),
-            'chemicals': (['chemical', 'acid', 'compound'], ['28', '29', '30'])
+            'food_beverage': (['juice', 'drink', 'beverage', 'lemonade', 'soda', 'water', 'coffee', 'tea', 'milk', 'beer', 'wine', 'alcohol'], ['20', '21', '22', '04', '19']),
+            'electronics': (['phone', 'computer', 'device', 'electronic', 'monitor', 'screen', 'display', 'oled', 'lcd', 'led', 'television', 'tv', 'radio', 'camera'], ['85', '90', '84', '95']),
+            'clothing_textiles': (['shirt', 'pants', 'clothing', 'apparel', 'fabric', 'textile', 'cotton', 'wool', 'garment'], ['61', '62', '63', '50', '51', '52', '53', '54', '55']),
+            'chemicals': (['chemical', 'acid', 'compound', 'pharmaceutical', 'medicine', 'drug'], ['28', '29', '30', '38']),
+            'machinery': (['machine', 'engine', 'motor', 'pump', 'generator', 'compressor'], ['84', '85']),
+            'metals': (['steel', 'iron', 'aluminum', 'copper', 'metal', 'alloy'], ['72', '73', '74', '75', '76', '78', '79']),
+            'vehicles': (['car', 'truck', 'vehicle', 'automobile', 'motorcycle', 'bicycle'], ['87', '89']),
+            'furniture': (['chair', 'table', 'furniture', 'bed', 'desk', 'cabinet'], ['94']),
+            'books_paper': (['book', 'paper', 'document', 'magazine', 'newspaper'], ['48', '49']),
+            'toys_games': (['toy', 'game', 'puzzle', 'doll', 'ball'], ['95'])
         }
         
         # Determine expected product category
         expected_chapters = []
+        matched_category = None
         for category, (keywords, chapters) in product_indicators.items():
             if any(keyword in product_lower for keyword in keywords):
                 expected_chapters.extend(chapters)
+                matched_category = category
                 break
         
-        if not expected_chapters:
-            return True  # Can't determine, assume relevant
+        # If we can determine the category, check for major mismatches
+        if expected_chapters:
+            relevant_candidates = 0
+            total_checked = min(5, len(candidates))  # Check top 5
             
-        # Check if any candidates match expected chapters
-        for candidate in candidates[:3]:
-            candidate_chapter = candidate.code[:2] if len(candidate.code) >= 2 else ""
-            if candidate_chapter in expected_chapters:
-                return True
+            for candidate in candidates[:total_checked]:
+                candidate_chapter = candidate.code[:2] if len(candidate.code) >= 2 else ""
+                if candidate_chapter in expected_chapters:
+                    relevant_candidates += 1
+            
+            # Need at least 40% of top candidates to match expected category
+            relevance_ratio = relevant_candidates / total_checked
+            
+            if self.debug:
+                print(f"[DEBUG] Relevance check: {matched_category} expects chapters {expected_chapters}")
+                print(f"[DEBUG] Found {relevant_candidates}/{total_checked} relevant candidates ({relevance_ratio:.2f})")
+            
+            return relevance_ratio >= 0.4
+        
+        # Advanced semantic relevance check for unclear categories
+        return self._semantic_relevance_check(product_lower, candidates)
+    
+    def _semantic_relevance_check(self, product_lower: str, candidates: List[HSCode]) -> bool:
+        """Semantic relevance check for products that don't fit clear categories"""
+        
+        # Extract meaningful words from product description
+        product_words = set(word for word in product_lower.split()
+                           if len(word) > 3 and word not in {'test', 'hello', 'world', 'example', 'demo'})
+        
+        if not product_words:
+            return True  # If no meaningful words, assume relevant
+        
+        relevant_count = 0
+        total_checked = min(5, len(candidates))
+        
+        for candidate in candidates[:total_checked]:
+            candidate_desc_lower = candidate.description.lower()
+            
+            # Check for word overlap
+            candidate_words = set(candidate_desc_lower.split())
+            
+            # Look for meaningful word matches
+            word_matches = 0
+            for product_word in product_words:
+                if (product_word in candidate_desc_lower or
+                    any(product_word in cand_word or cand_word in product_word
+                        for cand_word in candidate_words if len(cand_word) > 3)):
+                    word_matches += 1
+            
+            # If we find some word matches or high similarity score, consider relevant
+            if word_matches > 0 or candidate.similarity_score > 0.7:
+                relevant_count += 1
                 
-        return False  # No candidates match expected category
+        relevance_ratio = relevant_count / total_checked
+        
+        if self.debug:
+            print(f"[DEBUG] Semantic relevance check: {relevant_count}/{total_checked} candidates seem relevant ({relevance_ratio:.2f})")
+            
+        return relevance_ratio >= 0.3  # Lower threshold for semantic check
 
+    def _format_candidate_with_full_context(self, hs_code: HSCode) -> str:
+        """Format HS code with full tree context for better Claude understanding"""
+        # Find the corresponding node in the tree to get full path
+        candidate_node = None
+        for node in self.embedding_service.leaf_nodes:
+            if node.code == hs_code.code and node.name == hs_code.description:
+                candidate_node = node
+                break
+        
+        if candidate_node:
+            # Get full path for context (so "Other" becomes meaningful)
+            full_path = candidate_node.get_full_path()
+            return f"- {hs_code.code}: {hs_code.description} (similarity: {hs_code.similarity_score:.2f})\n  └── Context: {full_path}"
+        else:
+            # Fallback to basic format
+            return f"- {hs_code.code}: {hs_code.description} (similarity: {hs_code.similarity_score:.2f})"
+    
     def refine_query(self, original_query: str, top_candidates: List[HSCode]) -> str:
         """Legacy method - now just calls generate_smart_query"""
         # This is kept for compatibility but we should use generate_smart_query instead
@@ -463,9 +866,9 @@ Return ONLY the semantic search query text, nothing else."""
             print(f"[DEBUG] Iteration: {state.iteration}")
             print(f"[DEBUG] Current candidates: {len(state.current_candidates)}")
         
-        # Build context for Claude
+        # Build context for Claude with FULL TREE PATH for better context
         candidates_text = "\n".join([
-            f"- {code.code}: {code.description} (similarity: {code.similarity_score:.2f})"
+            self._format_candidate_with_full_context(code)
             for code in state.current_candidates[:10]  # Top 10 for context
         ])
         
@@ -474,7 +877,13 @@ Return ONLY the semantic search query text, nothing else."""
             for qa in state.qa_history
         ])
         
-        prompt = f"""You are helping classify a product into the correct HS (Harmonized System) code. 
+        if self.debug:
+            print(f"[DEBUG] Question generation - Q&A history has {len(state.qa_history)} entries:")
+            for i, qa in enumerate(state.qa_history, 1):
+                print(f"[DEBUG]   {i}. Q: {qa['question']}")
+                print(f"[DEBUG]      A: {qa['answer']}")
+        
+        prompt = f"""You are helping classify a product into the correct HS (Harmonized System) code.
 
 ORIGINAL PRODUCT DESCRIPTION: {state.product_description}
 
@@ -484,25 +893,130 @@ PREVIOUS QUESTIONS AND ANSWERS:
 CURRENT TOP HS CODE CANDIDATES:
 {candidates_text}
 
-Your task: Analyze these HS code candidates and determine the best way to help the user distinguish between them.
+OBJECTIVE
 
-Think through this step by step:
-1. Look at the original product description - what is already clearly specified?
-2. Examine the HS code candidates - what are the key differences between them?
-3. Consider previous Q&A - what has already been established?
-4. Decide: Is there a meaningful question that would help narrow down the candidates, or is the answer already obvious from the description?
+Ask one short, discriminating question about a product characteristic the user actually knows (or give a confident conclusion when warranted) to reliably distinguish between the candidate HS codes.
 
-You can think freely and provide analysis, but you MUST end your response in one of these two formats:
+HARD RULES (must follow)
 
-If a question would help:
-QUESTION: [Your specific question here]
+Never ask about HS codes, chapters, classification numbers, tariff rates, customs regulations, or which HS chapter applies.
 
-If no question is needed because the answer is obvious:
-CONCLUSION: Based on [brief reason], the most likely codes are [list 2-3 specific codes]
+Never ask the same question twice (check qa_history_text for synonyms and answered topics).
 
-Examples:
-QUESTION: What is the sugar content percentage in your preserved mandarins?
-CONCLUSION: Based on "canned" in the description, codes 2008.30.55 and 2008.30.75 are most relevant as they cover preserved mandarins."""
+Ask only one question per assistant message. If a multiple-choice format is appropriate, present one multiple-choice question (2–4 options).
+
+Use plain language the user understands — prefer choices like “material,” “processing,” “use,” “size,” “packaging,” “condition,” or “origin.”
+
+If you are confident, provide a CONCLUSION (see required output formats below). Otherwise ask a QUESTION or MULTIPLE_CHOICE.
+
+The assistant response must end in exactly one of the required output formats (CONCLUSION / QUESTION / MULTIPLE_CHOICE) described below.
+
+DECISION LOGIC (how to decide whether to conclude or ask)
+
+CONCLUDE when you are >90% confident (or the top candidate’s similarity >0.90) and there are no close competitors. If top similarity is >0.85 and the second candidate’s similarity is at least 0.10 lower, concluding is acceptable.
+
+ASK A TARGETED QUESTION when: top similarity ≤ 0.90 but > 0.70, or if two or more candidates are close and a specific distinguishing characteristic is missing.
+
+ASK A BROAD CLARIFYING QUESTION when top similarity ≤ 0.70 or the product description is vague/missing core attributes.
+
+When deciding what to ask, follow this micro-algorithm:
+
+Parse qa_history_text — list topics already answered.
+
+Parse state.product_description — list missing or ambiguous product attributes.
+
+Compare candidates_text — identify the smallest set of characteristics that differ between candidates (material, processing, intended use, condition, packaging, or composition).
+
+Create a single, precise question that targets that distinguishing characteristic and that a typical product-owner can answer.
+
+QUESTION STYLE GUIDELINES
+
+Keep it one sentence, simple, and specific.
+
+Avoid technical measurements unless the user likely knows them (if in doubt, offer multiple-choice ranges).
+
+If using multiple-choice: include an “I don’t know / Other” option. Limit to 2–4 options.
+
+Never use classification jargon. Use everyday words like “metal/plastic/wood,” “fresh/dried/processed,” “for household/industrial use,” etc.
+
+Do not combine multiple different topics into one question.
+
+ALLOWED TOPICS TO ASK ABOUT
+
+Material(s) (plastic, metal, fabric, wood, glass, ceramic, composite, leather, etc.)
+
+Processing or treatment (coated, plated, painted, varnished, heat-treated, sterilized, concentrated, preserved)
+
+Function or intended primary use (e.g., for cutting food, for packaging, for measuring)
+
+Condition (fresh, dried, frozen, raw, cooked, processed)
+
+Composition or ingredients and their percentages (if user can know them)
+
+Packaging (retail packaged, bulk, individually packaged)
+
+Origin (country/region of manufacture or growth)
+
+Target market (consumer, industrial, medical)
+
+Size/dimensions and weight (if relevant and likely known)
+
+ABSOLUTELY FORBIDDEN QUESTIONS (examples)
+
+“What HS code chapter covers this?”
+
+“Which classification applies to your product?”
+
+“What tariff rate applies?”
+
+Any question phrased as “Which HS code…”, “What chapter…”, or asking the user to provide classification numbers.
+
+Questions asking for expert customs/legal interpretation.
+
+MULTIPLE-CHOICE RULES
+
+Use when 2–4 clear plausible alternatives exist.
+
+Include an “Other / I don’t know” option.
+
+Keep each option short and mutually exclusive.
+
+OUTPUT FORMATS (the assistant must end the message with exactly one of these)
+
+CONCLUSION (use when >90% confident and top candidate clearly matches):
+CONCLUSION: The correct HS code is [CODE] because [brief reasoning based on product characteristics and Q&A history].
+
+QUESTION (single specific new question):
+QUESTION: [Your specific NEW question here]
+
+MULTIPLE_CHOICE (2–4 options; use when the user is more likely to choose from clear alternatives):
+MULTIPLE_CHOICE: [Your NEW question here]
+OPTIONS:
+A) [First option]
+B) [Second option]
+C) [Third option]
+D) [Fourth option if needed; include “Other / I don’t know” when appropriate]
+
+SHORT EXAMPLES
+
+CONCLUSION: The correct HS code is 0808.10.80 because the description and confirmed answers indicate these are fresh apples for eating (not processed or preserved).
+
+QUESTION: Is the product sold fresh, dried, or preserved/processed?
+
+MULTIPLE_CHOICE: What is the product’s primary material?
+OPTIONS:
+A) Plastic
+B) Metal
+C) Textile/fabric
+D) I don’t know / Other
+
+FINAL REMINDERS
+
+Always check qa_history_text first — do not repeat topics or synonyms.
+
+Ask the smallest possible question that will resolve the ambiguity.
+
+Be short, polite, and actionable."""
 
         if self.debug:
             print(f"[DEBUG] Sending prompt to Claude:")
@@ -512,7 +1026,7 @@ CONCLUSION: Based on "canned" in the description, codes 2008.30.55 and 2008.30.7
 
         try:
             response = self.client.messages.create(
-                model="claude-sonnet-4-20250514",
+                model="claude-3-haiku-20240307",  # Faster model as requested
                 max_tokens=500,  # Increased from 300 to allow complete responses
                 messages=[{"role": "user", "content": prompt}]
             )
@@ -527,6 +1041,24 @@ CONCLUSION: Based on "canned" in the description, codes 2008.30.55 and 2008.30.7
                 print(f"[DEBUG] Raw response: {raw_response}")
                 print(f"[DEBUG] Parsed result: {parsed_result}")
             
+            # Additional check: Validate that we're not asking duplicate questions
+            if parsed_result.get('type') in ['question', 'multiple_choice']:
+                new_question = parsed_result.get('content', '').lower()
+                for qa in state.qa_history:
+                    existing_question = qa['question'].lower()
+                    # Check for similar questions (simple similarity check)
+                    if self._questions_are_similar(new_question, existing_question):
+                        if self.debug:
+                            print(f"[DEBUG] WARNING: Potential duplicate question detected!")
+                            print(f"[DEBUG]   New: {new_question}")
+                            print(f"[DEBUG]   Existing: {existing_question}")
+                        # Generate a fallback question that's definitely different
+                        parsed_result = {
+                            "type": "question",
+                            "content": f"Can you provide any additional technical specifications or details about your {state.product_description} that might help with classification?"
+                        }
+                        break
+            
             return parsed_result
         
         except Exception as e:
@@ -536,7 +1068,49 @@ CONCLUSION: Based on "canned" in the description, codes 2008.30.55 and 2008.30.7
             return {"type": "question", "content": "What is the primary intended use or application of your product?"}
 
     def _parse_structured_response(self, response: str) -> Dict[str, str]:
-        """Parse Claude's structured response into question or conclusion with truncation handling"""
+        """Parse Claude's structured response into conclusion, question, or multiple choice"""
+        
+        # Look for CONCLUSION: format (new - for confident classifications)
+        if "CONCLUSION:" in response:
+            conclusion_start = response.find("CONCLUSION:") + len("CONCLUSION:")
+            conclusion_text = conclusion_start
+            # Extract everything after CONCLUSION: up to next line or end
+            conclusion_lines = response[conclusion_start:].strip().split('\n')
+            conclusion = conclusion_lines[0].strip()
+            
+            if self.debug:
+                print(f"[DEBUG] Claude provided conclusion: '{conclusion}'")
+            
+            return {"type": "conclusion", "content": conclusion}
+        
+        # Look for MULTIPLE_CHOICE: format
+        if "MULTIPLE_CHOICE:" in response and "OPTIONS:" in response:
+            mc_start = response.find("MULTIPLE_CHOICE:") + len("MULTIPLE_CHOICE:")
+            options_start = response.find("OPTIONS:")
+            
+            question = response[mc_start:options_start].strip()
+            options_text = response[options_start + len("OPTIONS:"):].strip()
+            
+            # Parse options
+            options = []
+            for line in options_text.split('\n'):
+                line = line.strip()
+                if line and (line.startswith(('A)', 'B)', 'C)', 'D)', 'E)')) or
+                            line.startswith(('A.', 'B.', 'C.', 'D.', 'E.'))):
+                    # Extract option text (remove A), B), etc.)
+                    option_text = line[2:].strip()
+                    if option_text:
+                        options.append(option_text)
+            
+            if len(options) >= 2:  # Need at least 2 options for multiple choice
+                return {
+                    "type": "multiple_choice",
+                    "content": question,
+                    "options": options
+                }
+            else:
+                # Fall back to regular question if options parsing failed
+                return {"type": "question", "content": question if question else "What specific characteristic best describes your product?"}
         
         # Look for QUESTION: format
         if "QUESTION:" in response:
@@ -552,22 +1126,41 @@ CONCLUSION: Based on "canned" in the description, codes 2008.30.55 and 2008.30.7
             
             return {"type": "question", "content": question}
         
-        # Look for CONCLUSION: format
-        if "CONCLUSION:" in response:
-            conclusion_start = response.find("CONCLUSION:") + len("CONCLUSION:")
-            conclusion = response[conclusion_start:].strip()
-            
-            # Check if conclusion appears truncated
-            if len(conclusion) < 20:
-                if self.debug:
-                    print(f"[DEBUG] Detected truncated conclusion: '{conclusion}'")
-                return {"type": "question", "content": "What additional characteristics of your product can help narrow down the classification?"}
-            
-            return {"type": "conclusion", "content": conclusion}
-        
         # Fallback: try to extract question from unstructured response
         question = self._extract_question_from_response(response)
         return {"type": "question", "content": question}
+    
+    def _questions_are_similar(self, question1: str, question2: str) -> bool:
+        """Check if two questions are asking about similar things to prevent duplicates"""
+        
+        # Simple similarity check - look for common key terms
+        def extract_key_terms(question):
+            # Remove question words and common terms
+            stop_words = {
+                'what', 'how', 'which', 'where', 'when', 'why', 'who', 'is', 'are', 'do', 'does', 'can', 'could', 'would', 'should',
+                'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'your', 'this', 'that'
+            }
+            terms = set()
+            for word in question.lower().split():
+                word = word.strip('.,?!:;')
+                if len(word) > 2 and word not in stop_words:
+                    terms.add(word)
+            return terms
+        
+        terms1 = extract_key_terms(question1)
+        terms2 = extract_key_terms(question2)
+        
+        # If there's significant overlap in key terms, they're probably similar
+        if not terms1 or not terms2:
+            return False
+            
+        overlap = len(terms1.intersection(terms2))
+        min_terms = min(len(terms1), len(terms2))
+        
+        # If more than 50% of terms overlap, consider it similar
+        similarity_ratio = overlap / min_terms if min_terms > 0 else 0
+        
+        return similarity_ratio > 0.5
 
 class HSCodeClassifier:
     """Main classifier orchestrating the iterative process"""
@@ -576,6 +1169,8 @@ class HSCodeClassifier:
         self.debug = debug
         self.embedding_service = HSCodeSemanticSearch(debug=debug)
         self.question_generator = ClaudeQuestionGenerator(claude_api_key, debug=debug)
+        # Connect the embedding service to the question generator
+        self.question_generator.embedding_service = self.embedding_service
         self.max_iterations = 6
         self.similarity_threshold = 0.6
         
@@ -688,7 +1283,7 @@ class HSCodeClassifier:
         return self.build_query_context(state)
     
     def check_convergence(self, state: ConversationState, prev_candidates: List[HSCode]) -> bool:
-        """Check if we should stop iterating"""
+        """Check if we should stop iterating - STRICTER criteria to force more questioning"""
         
         if self.debug:
             print(f"[DEBUG] check_convergence() called")
@@ -700,22 +1295,46 @@ class HSCodeClassifier:
             if self.debug:
                 print(f"[DEBUG] Convergence: Max iterations reached")
             return True
-            
-        # Single high-confidence candidate
-        if len(state.current_candidates) == 1 and state.current_candidates[0].similarity_score > 0.85:
-            if self.debug:
-                print(f"[DEBUG] Convergence: Single high-confidence candidate ({state.current_candidates[0].similarity_score:.3f})")
-            return True
-            
-        # Stable top candidates (same top 3 as previous iteration)
-        if prev_candidates and len(state.current_candidates) >= 3 and len(prev_candidates) >= 3:
+        
+        # STRICTER: Only converge if we have very few candidates AND high confidence
+        if len(state.current_candidates) <= 2:
+            if len(state.current_candidates) == 1:
+                # Single candidate needs VERY high confidence (raised from 0.85 to 0.9)
+                if state.current_candidates[0].similarity_score > 0.9:
+                    if self.debug:
+                        print(f"[DEBUG] Convergence: Single very high-confidence candidate ({state.current_candidates[0].similarity_score:.3f})")
+                    return True
+            elif len(state.current_candidates) == 2:
+                # Two candidates: top one must be significantly better than second
+                top_score = state.current_candidates[0].similarity_score
+                second_score = state.current_candidates[1].similarity_score
+                if top_score > 0.85 and (top_score - second_score) > 0.2:
+                    if self.debug:
+                        print(f"[DEBUG] Convergence: Two candidates with clear winner ({top_score:.3f} vs {second_score:.3f})")
+                    return True
+        
+        # REMOVED: The "stable top 3" convergence criteria - we want to keep asking questions
+        # even if results are stable to get more specificity
+        
+        # NEW: Only converge if we have BOTH stability AND enough Q&A history
+        if (prev_candidates and len(state.current_candidates) >= 3 and len(prev_candidates) >= 3 and
+            len(state.qa_history) >= 3):  # Require at least 3 Q&As
             current_top3 = [c.code for c in state.current_candidates[:3]]
             prev_top3 = [c.code for c in prev_candidates[:3]]
+            
             if current_top3 == prev_top3:
-                if self.debug:
-                    print(f"[DEBUG] Convergence: Stable top 3 candidates")
-                    print(f"[DEBUG] Top 3: {current_top3}")
-                return True
+                # Additional check: top candidate must have good confidence
+                if state.current_candidates[0].similarity_score > 0.75:
+                    if self.debug:
+                        print(f"[DEBUG] Convergence: Stable top 3 + enough Q&A history ({len(state.qa_history)} questions)")
+                        print(f"[DEBUG] Top 3: {current_top3}")
+                    return True
+        
+        # NEVER converge too early - force at least 2 iterations even with good results
+        if state.iteration < 2:
+            if self.debug:
+                print(f"[DEBUG] No convergence: Forcing minimum 2 iterations (currently {state.iteration})")
+            return False
         
         if self.debug:
             print(f"[DEBUG] No convergence criteria met - continuing")
@@ -803,7 +1422,8 @@ class HSCodeClassifier:
             # Try search with Claude-generated query
             state.current_candidates = self.embedding_service.search_hs_codes(
                 claude_query,
-                self.similarity_threshold
+                self.similarity_threshold,
+                state.qa_history  # Pass Q&A history for contradiction penalty
             )
             
             # Check if candidates are completely irrelevant (Claude already optimized the query)
@@ -824,7 +1444,8 @@ class HSCodeClassifier:
                         print(f"🔍 Retry semantic search query: '{retry_query}'")
                         retry_candidates = self.embedding_service.search_hs_codes(
                             retry_query,
-                            self.similarity_threshold
+                            self.similarity_threshold,
+                            state.qa_history  # Pass Q&A history for contradiction penalty
                         )
                         
                         if retry_candidates:
@@ -864,108 +1485,58 @@ class HSCodeClassifier:
             
             claude_response = self.question_generator.generate_question(state)
             
-            # Handle different response types - but NEVER allow conclusions with irrelevant candidates
+            # Handle conclusions, questions, and multiple choice
             if claude_response["type"] == "conclusion":
-                # Double-check that candidates are actually relevant before allowing conclusion
-                candidates_relevant = self.question_generator._candidates_seem_relevant(
-                    state.product_description,
-                    state.current_candidates
-                )
+                # Claude is confident about the classification
+                conclusion_text = claude_response["content"]
+                print(f"AI Analysis: {conclusion_text}")
                 
-                if not candidates_relevant:
-                    print(f"🚫 AI wanted to make a conclusion, but current candidates appear irrelevant to '{state.product_description}'")
-                    print(f"Continuing with questions to find better matches...")
-                    
-                    # Force a question instead
-                    fallback_question = f"The search results don't seem to match your product '{state.product_description}'. Can you provide more specific details or use different terminology to describe your product?"
-                    print(f"Question {len(state.qa_history) + 1}: {fallback_question}")
-                    
-                    # Get user answer
-                    answer = input("Your answer: ").strip()
-                    
-                    if self.debug:
-                        print(f"[DEBUG] User answer: {answer}")
-                    
-                    # Update state
-                    state.qa_history.append({
-                        "question": fallback_question,
-                        "answer": answer
-                    })
-                else:
-                    print(f"\nAI Analysis: {claude_response['content']}")
-                    
-                    # Determine if this is a positive conclusion (recommending codes) or negative (no classification possible)
-                    conclusion_text = claude_response['content'].lower()
-                    
-                    # Strong negative indicators - if ANY of these are present, it's a negative conclusion
-                    strong_negative_indicators = [
-                        'no meaningful', 'cannot', 'not a product', 'no classification', 'not describing', 'no actual product',
-                        'none of the', 'not meaningfully applicable', 'proper product description is needed',
-                        'system prompt rather than', 'vague and doesn\'t specify', 'doesn\'t describe any actual product',
-                        'classification is not possible', 'no meaningful hs classification', 'system instruction',
-                        'general knowledge question', 'conversational question', 'not a product description',
-                        'asking about', 'who is', 'what is', 'when was', 'where is', 'how does', 'why does',
-                        'not describing a physical product', 'information request', 'trivia question'
-                    ]
-                    
-                    # Additional negative patterns
-                    negative_patterns = [
-                        'needed for accurate' in conclusion_text and 'classification' in conclusion_text,
-                        'appears to be a test' in conclusion_text,
-                        'system prompt' in conclusion_text,
-                        'rather than a genuine product' in conclusion_text,
-                        'general knowledge' in conclusion_text,
-                        'information about' in conclusion_text and 'not a product' in conclusion_text,
-                        'biographical' in conclusion_text or 'historical' in conclusion_text,
-                        'question about' in conclusion_text and ('company' in conclusion_text or 'person' in conclusion_text)
-                    ]
-                    
-                    has_strong_negative = any(indicator in conclusion_text for indicator in strong_negative_indicators)
-                    has_negative_pattern = any(negative_patterns)
-                    
-                    is_positive_conclusion = not (has_strong_negative or has_negative_pattern)
-                    
-                    if is_positive_conclusion:
-                        print("\nThe AI believes it has enough information to recommend specific codes.")
-                        user_choice = input("Continue with questions (c) or accept recommendation (a)? [c/a]: ").strip().lower()
-                    else:
-                        print("\nThe AI has determined that classification is not possible with the current information.")
-                        user_choice = input("Continue with questions (c) or start over with a new product (s)? [c/s]: ").strip().lower()
-                        if user_choice == 's':
+                # Extract HS code from conclusion if possible
+                import re
+                code_match = re.search(r'\b\d{4}\.?\d{2}\.?\d{2}\b', conclusion_text)
+                if code_match:
+                    suggested_code = code_match.group().replace('.', '')
+                    # Find the candidate with this code
+                    for candidate in state.current_candidates:
+                        if candidate.code.replace(' ', '').replace('.', '') == suggested_code.replace(' ', '').replace('.', ''):
+                            print(f"🎯 Confident classification found!")
                             if self.debug:
-                                print(f"[DEBUG] User chose to start over")
-                            return None  # Signal to start over
-                    
-                    # Ask user if they want to continue with questions or accept the recommendation
-                    
-                    if user_choice in ['a']:  # Accept recommendation (only for positive conclusions)
-                        print("Accepting AI recommendation and moving to final selection...")
-                        if self.debug:
-                            print(f"[DEBUG] User accepted AI recommendation - forcing convergence")
-                        break
-                    elif user_choice in ['s']:  # Start over (for negative conclusions)
-                        if self.debug:
-                            print(f"[DEBUG] User chose to start over - returning None")
-                        return None
-                    else:  # Continue with questions
-                        print("Continuing with additional questions...")
-                        # Generate a fallback question
-                        fallback_question = "What additional details can you provide about your product that might help narrow down the classification?"
-                        print(f"Question {len(state.qa_history) + 1}: {fallback_question}")
-                        
-                        # Get user answer
-                        answer = input("Your answer: ").strip()
-                        
-                        if self.debug:
-                            print(f"[DEBUG] User answer: {answer}")
-                        
-                        # Update state
-                        state.qa_history.append({
-                            "question": fallback_question,
-                            "answer": answer
-                        })
+                                print(f"[DEBUG] Conclusion suggests: {candidate.code}")
+                            return candidate
+                
+                # If we can't extract the code, treat top candidate as final
+                if state.current_candidates:
+                    print(f"🎯 Using top candidate based on confident analysis")
+                    if self.debug:
+                        print(f"[DEBUG] Conclusion fallback to top candidate: {state.current_candidates[0].code}")
+                    return state.current_candidates[0]
+                
+            elif claude_response["type"] == "multiple_choice":
+                question = claude_response["content"]
+                options = claude_response.get("options", [])
+                
+                print(f"Question {len(state.qa_history) + 1}: {question}")
+                
+                # Display options
+                if options:
+                    print("Options:")
+                    for i, option in enumerate(options, 1):
+                        print(f"  {chr(64+i)}) {option}")  # A), B), C), etc.
+                    print()
+                
+                # Get user answer
+                answer = input("Your answer: ").strip()
+                
+                if self.debug:
+                    print(f"[DEBUG] User answer: {answer}")
+                
+                # Update state
+                state.qa_history.append({
+                    "question": question,
+                    "answer": answer
+                })
             
-            else:  # type == "question"
+            else:  # type == "question" (regular question)
                 question = claude_response["content"]
                 print(f"Question {len(state.qa_history) + 1}: {question}")
                 
