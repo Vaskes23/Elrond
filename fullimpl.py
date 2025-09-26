@@ -326,14 +326,37 @@ Examples:
 Return ONLY the semantic search query text, nothing else."""
 
         try:
+            # ALWAYS log Claude API calls (detailed console output)
+            print(f"\n{'='*100}")
+            print(f"🤖 CLAUDE API CALL - SMART QUERY GENERATION")
+            print(f"{'='*100}")
+            print(f"REQUEST:")
+            print(f"Model: claude-sonnet-4-20250514")
+            print(f"Max tokens: 100")
+            print(f"Message content length: {len(prompt)} characters")
+            print(f"\nINPUT TO CLAUDE:")
+            print("-" * 80)
+            print(prompt)
+            print("-" * 80)
+            print("Sending request to Claude API...")
+
             if self.debug:
                 print(f"[DEBUG] Asking Claude to generate smart query...")
-                
+
             response = self.client.messages.create(
                 model="claude-sonnet-4-20250514",
                 max_tokens=100,
                 messages=[{"role": "user", "content": prompt}]
             )
+
+            # Log Claude response
+            response_text = response.content[0].text.strip()
+            print(f"\nCLAUDE RESPONSE:")
+            print("-" * 80)
+            print(response_text)
+            print("-" * 80)
+            print(f"Response length: {len(response_text)} characters")
+            print("=" * 100 + "\n")
             
             smart_query = response.content[0].text.strip()
             
@@ -511,11 +534,34 @@ CONCLUSION: Based on "canned" in the description, codes 2008.30.55 and 2008.30.7
             print(f"[DEBUG] {'-'*50}")
 
         try:
+            # ALWAYS log Claude API calls (detailed console output)
+            print(f"\n{'='*100}")
+            print(f"🤖 CLAUDE API CALL - QUESTION GENERATION")
+            print(f"{'='*100}")
+            print(f"REQUEST:")
+            print(f"Model: claude-sonnet-4-20250514")
+            print(f"Max tokens: 500")
+            print(f"Message content length: {len(prompt)} characters")
+            print(f"\nINPUT TO CLAUDE:")
+            print("-" * 80)
+            print(prompt)
+            print("-" * 80)
+            print("Sending request to Claude API...")
+
             response = self.client.messages.create(
                 model="claude-sonnet-4-20250514",
                 max_tokens=500,  # Increased from 300 to allow complete responses
                 messages=[{"role": "user", "content": prompt}]
             )
+
+            # Log Claude response
+            response_text = response.content[0].text.strip()
+            print(f"\nCLAUDE RESPONSE:")
+            print("-" * 80)
+            print(response_text)
+            print("-" * 80)
+            print(f"Response length: {len(response_text)} characters")
+            print("=" * 100 + "\n")
             
             raw_response = response.content[0].text.strip()
             
