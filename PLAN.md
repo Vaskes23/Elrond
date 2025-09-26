@@ -1,177 +1,284 @@
-# ElevenLabs Agent Live Testing Resolution Plan
+# ElevenLabs Agent Session Management Investigation Plan
 
-## Current Issue Summary
-The ElevenLabs agent successfully connects to the websocket and receives audio data, but fails to process or respond to the audio input. The connection works but the conversation flow breaks after receiving audio.
+## Problem Summary
+**CRITICAL ISSUE IDENTIFIED**: The ElevenLabs agent opens a new session for every message exchange instead of maintaining conversation continuity within a single session. This breaks the conversational flow and prevents proper context retention.
 
-## Root Cause Analysis
+### Symptoms:
+- Agent responds with the same opening message repeatedly
+- No memory of previous conversation turns
+- Context not carried forward between exchanges
+- Each API call appears to start fresh conversation
+- Conversation history builds locally but doesn't affect agent responses
 
-### What's Working ✅
-- WebSocket connection establishment
-- Initial handshake and metadata exchange
-- Audio data reception (base64 PCM format)
-- Authentication with ElevenLabs API
+## Root Cause Investigation Plan
 
-### What's Broken ❌
-- Audio processing/transcription
-- Response generation after audio input
-- Conversation flow continuation
-- Error handling and logging visibility
+### Phase 1: Session Management Audit (IMMEDIATE - Day 1)
+**Goal**: Map exact session flow and identify where new sessions are created
 
-## Resolution Plan
+#### 1.1 Client Session Tracking
+- [ ] Add session ID logging to every API call
+- [ ] Track session creation vs session reuse patterns
+- [ ] Log conversation_history state before/after each call
+- [ ] Monitor ElevenLabsChatClient._conversation_history persistence
 
-### Phase 1: Enhanced Logging & Debugging 🔍
+#### 1.2 API Endpoint Analysis
+- [ ] Verify simulate-conversation endpoint behavior
+- [ ] Test if endpoint maintains state between calls
+- [ ] Check if conversation_context parameter is working correctly
+- [ ] Analyze API response for session continuity indicators
 
-1. **Add comprehensive logging to chat_cli.py**
-   - Log all incoming websocket messages with timestamps
-   - Add debug logging for audio processing steps
-   - Log any exceptions or errors that occur during processing
-   - Add logging for response generation attempts
-
-2. **Implement proper error handling**
-   - Wrap audio processing in try-catch blocks
-   - Add specific error messages for different failure points
-   - Log full stack traces for debugging
-
-3. **Add connection health monitoring**
-   - Ping/pong heartbeat logging
-   - Connection state tracking
-   - Timeout detection and logging
-
-### Phase 2: Audio Processing Verification 🎵
-
-1. **Test audio data handling**
-   - Verify base64 audio decoding works correctly
-   - Test PCM audio format conversion
-   - Add logging to show audio data size and format
-
-2. **Implement audio validation**
-   - Check if received audio data is valid PCM
-   - Verify audio meets ElevenLabs format requirements
-   - Add audio quality checks (sample rate, bit depth)
-
-3. **Test with simpler audio inputs**
-   - Start with pre-recorded test audio files
-   - Use known good audio samples
-   - Test with different audio lengths
-
-### Phase 3: Configuration & API Verification ⚙️
-
-1. **Verify ElevenLabs agent configuration**
-   - Check agent ID is valid and accessible
-   - Verify conversation signature generation
-   - Test API credentials and permissions
-
-2. **Review conversation settings**
-   - Verify `text_only: True` setting is appropriate
-   - Check if additional conversation parameters are needed
-   - Test with different conversation configurations
-
-3. **API endpoint validation**
-   - Test direct API calls to ElevenLabs
-   - Verify agent permissions and capabilities
-   - Check for any API rate limiting or quota issues
-
-### Phase 4: Response Generation Testing 💬
-
-1. **Test text-based conversation flow**
-   - Try sending text messages instead of audio
-   - Verify the agent can generate responses to text
-   - Test the full conversation pipeline with text
-
-2. **Audio-to-text pipeline testing**
-   - Add logging for speech recognition results
-   - Test transcription accuracy with known phrases
-   - Verify text processing after transcription
-
-3. **Response formatting and sending**
-   - Log generated responses before sending
-   - Test websocket message sending functionality
-   - Verify response format matches ElevenLabs expectations
-
-### Phase 5: Integration Testing 🔄
-
-1. **End-to-end conversation testing**
-   - Test complete audio → text → response → audio flow
-   - Use simple, clear test phrases
-   - Gradually increase conversation complexity
-
-2. **Error scenario testing**
-   - Test with invalid audio data
-   - Test with very long/short audio clips
-   - Test network interruption scenarios
-
-3. **Performance testing**
-   - Test response times
-   - Monitor memory usage during conversations
-   - Test with multiple consecutive audio inputs
-
-## Implementation Steps
-
-### Step 1: Update chat_cli.py with enhanced logging
+#### 1.3 Client Implementation Review
 ```python
-# Add detailed logging for all websocket events
-# Add try-catch blocks around audio processing
-# Log response generation attempts
+# Key areas to investigate:
+# 1. ElevenLabsChatClient.start_session() - when is this called?
+# 2. ElevenLabsChatClient.send() - does it create new sessions?
+# 3. ProperDurinClient session management - single session throughout?
+# 4. ChatMessage context passing between calls
 ```
 
-### Step 2: Create test scripts
+**Deliverable**: Session flow diagram showing where sessions are created/reused
+
+### Phase 2: API Behavior Testing (Day 2)
+**Goal**: Determine if issue is client-side or server-side
+
+#### 2.1 Manual API Testing
+- [ ] Test simulate-conversation endpoint directly with curl/Postman
+- [ ] Send sequential messages with same session context
+- [ ] Verify if ElevenLabs API maintains conversation state
+- [ ] Test different conversation_context formats
+
+#### 2.2 Conversation Context Investigation
+- [ ] Test minimal conversation context (single exchange)
+- [ ] Test full conversation history in context
+- [ ] Test different context formatting approaches
+- [ ] Verify context parameter limits and requirements
+
+#### 2.3 API Documentation Review
+- [ ] Review ElevenLabs conversation simulation API docs
+- [ ] Check for session persistence requirements
+- [ ] Identify proper conversation continuation methods
+- [ ] Look for context management best practices
+
+**Deliverable**: API behavior report with test results
+
+### Phase 3: Client Architecture Deep Dive (Day 3)
+**Goal**: Fix session management in client code
+
+#### 3.1 Session Lifecycle Audit
 ```python
-# test_audio_processing.py - Test audio handling in isolation
-# test_elevenlabs_api.py - Test direct API communication
-# test_conversation_flow.py - Test the complete conversation pipeline
+# Investigate these critical paths:
+def start_session(self) -> str:
+    # Is this creating a new session every time?
+    # Should this only be called once?
+
+def send(self, session_id: str, message: ChatMessage) -> ChatMessage:
+    # Does this maintain the session_id consistently?
+    # Is conversation_history being used correctly?
+    # Are we passing context properly to the API?
 ```
 
-### Step 3: Configuration validation script
+#### 3.2 Context Management Fix
+- [ ] Ensure conversation_history accumulates properly
+- [ ] Fix context parameter formatting for API
+- [ ] Test session persistence across multiple calls
+- [ ] Verify session_id consistency throughout conversation
+
+#### 3.3 Integration Testing
+- [ ] Test multi-turn conversations with fixed client
+- [ ] Verify context carries forward between turns
+- [ ] Test with different conversation lengths
+- [ ] Validate session continuity in interactive mode
+
+**Deliverable**: Fixed client implementation with proper session management
+
+### Phase 4: WebSocket vs HTTP Comparison (Day 4)
+**Goal**: Determine if WebSocket implementation has different session behavior
+
+#### 4.1 WebSocket Session Management
+- [ ] Review ElevenLabsWebSocketClient session handling
+- [ ] Compare WebSocket vs HTTP session persistence
+- [ ] Test if WebSocket maintains conversation state better
+- [ ] Identify optimal connection method for session continuity
+
+#### 4.2 Protocol-Specific Testing
+- [ ] Test same conversation flow via WebSocket
+- [ ] Test same conversation flow via HTTP
+- [ ] Compare session behavior between protocols
+- [ ] Document differences in session management
+
+**Deliverable**: Protocol comparison report with recommendations
+
+### Phase 5: Conversation Context Optimization (Day 5)
+**Goal**: Optimize how conversation context is passed to maintain session continuity
+
+#### 5.1 Context Format Testing
 ```python
-# validate_config.py - Check all API keys, agent settings, etc.
+# Test different context formats:
+# Format 1: Full conversation history
+"User: Hello\nAgent: Hi there\nUser: How are you?"
+
+# Format 2: Structured conversation
+{"conversation_history": [{"role": "user", "content": "Hello"}, ...]}
+
+# Format 3: Contextual summary
+"Previous context: User asked about product classification..."
 ```
 
-### Step 4: Live testing protocol
-1. Start with text-only messages
-2. Progress to simple audio phrases
-3. Test conversation continuity
-4. Verify response generation and playback
+#### 5.2 Context Size Optimization
+- [ ] Test context parameter size limits
+- [ ] Optimize conversation history truncation
+- [ ] Test context summarization for long conversations
+- [ ] Balance context detail vs API limits
+
+**Deliverable**: Optimized context management strategy
+
+## Implementation Priority
+
+### Critical Path (Must Fix):
+1. **Session ID Consistency** - Ensure same session_id used throughout conversation
+2. **Conversation History Persistence** - Fix _conversation_history accumulation
+3. **API Context Passing** - Properly format and pass conversation_context
+4. **Client Session Management** - Fix ProperDurinClient to maintain single session
+
+### Testing Strategy:
+```python
+# Test case: Multi-turn conversation
+1. Start session -> get session_id_1
+2. Send message 1 -> verify response with context
+3. Send message 2 -> verify agent remembers message 1
+4. Send message 3 -> verify agent remembers messages 1-2
+5. Verify session_id remains same throughout
+```
+
+## Diagnostic Tools to Create
+
+### Tool 1: Session Flow Tracer
+```python
+# session_tracer.py - Track session creation and reuse
+class SessionTracer:
+    def log_session_creation(self, session_id, context)
+    def log_session_reuse(self, session_id, message)
+    def log_api_call(self, session_id, payload, response)
+    def generate_session_report(self)
+```
+
+### Tool 2: Context Validator
+```python
+# context_validator.py - Verify context is passed correctly
+class ContextValidator:
+    def validate_context_format(self, context)
+    def check_context_completeness(self, conversation_history)
+    def test_context_api_acceptance(self, context)
+```
+
+### Tool 3: Multi-Turn Conversation Tester
+```python
+# conversation_tester.py - Automated multi-turn testing
+class ConversationTester:
+    def run_multi_turn_test(self, turns=5)
+    def verify_context_retention(self)
+    def check_session_consistency(self)
+```
+
+## Known Issues to Investigate
+
+### Issue 1: ElevenLabsChatClient Session Management
+```python
+# Current implementation may be creating new sessions:
+def start_session(self) -> str:
+    self._conversation_history = []  # Resets history!
+    return f"elevenlabs-session-{len(self._conversation_history)}"  # Always returns session-0?
+```
+
+### Issue 2: API Context Parameter
+```python
+# Conversation context may not be formatted correctly:
+"conversation_context": " ".join([
+    f"{'User' if turn['role'] == 'user' else 'Agent'}: {turn['content']}"
+    for turn in self._conversation_history[:-1]
+])
+```
+
+### Issue 3: Session ID Generation
+```python
+# Session ID may not be unique or persistent:
+return f"elevenlabs-session-{len(self._conversation_history)}"
+# This could generate the same ID for different conversations
+```
 
 ## Success Criteria
 
-### Minimum Viable Test ✅
-- Agent responds to "Hello" audio input
-- Conversation continues for at least 3 exchanges
-- Responses are audible and coherent
+### Technical Metrics:
+- [ ] Same session_id used for entire conversation (logged and verified)
+- [ ] Agent responses show contextual awareness of previous turns
+- [ ] Conversation_history accumulates properly in client
+- [ ] API context parameter includes full conversation
+- [ ] No repeated opening messages from agent
 
-### Full Success ✅
-- Robust error handling prevents crashes
-- Clear logging shows all processing steps
-- Consistent response times < 5 seconds
-- Multiple conversation topics work
-- Long conversations maintain context
+### Functional Validation:
+- [ ] Multi-turn customs classification conversation works
+- [ ] Agent remembers product details across exchanges
+- [ ] Officer responses influence subsequent agent replies
+- [ ] Natural conversation flow without repetition
+- [ ] Session can be properly ended without data loss
+
+### Test Cases:
+1. **5-turn conversation test**: Agent should remember all previous context
+2. **Product classification test**: Agent should maintain product details throughout
+3. **Interactive officer test**: Agent should respond differently based on officer feedback
+4. **Session persistence test**: Same session ID throughout entire conversation
+5. **Context size test**: Long conversations should maintain key context
 
 ## Risk Mitigation
 
-### Potential Blockers
-1. **API Key Issues**: Verify all credentials are current
-2. **Audio Format Problems**: Test with ElevenLabs-compatible formats
-3. **Network Issues**: Implement retry logic and connection recovery
-4. **Agent Configuration**: May need ElevenLabs support for agent setup
+### Potential Issues:
+1. **API Limitation**: ElevenLabs API may not support true session persistence
+   - **Mitigation**: Implement client-side context management with intelligent summarization
+2. **Context Size Limits**: Large conversation history may exceed API limits
+   - **Mitigation**: Implement intelligent context truncation preserving key information
+3. **Session Timeout**: Long conversations may cause session expiration
+   - **Mitigation**: Implement session refresh mechanism and timeout detection
 
-### Fallback Plans
-1. **Text-only mode**: If audio fails, ensure text conversation works
-2. **Alternative audio processing**: Try different audio libraries if needed
-3. **Simplified conversation**: Start with basic Q&A before complex dialogue
+### Rollback Plan:
+If session management cannot be fixed:
+1. Implement conversation summarization between turns
+2. Use context injection for each message with key previous context
+3. Create session management wrapper that simulates continuity
 
-## Timeline
+## Timeline: 5 Days Total
 
-- **Phase 1-2**: 2-3 hours (logging and audio debugging)
-- **Phase 3**: 1-2 hours (configuration verification)
-- **Phase 4**: 2-3 hours (response generation testing)
-- **Phase 5**: 1-2 hours (integration testing)
+### Day 1: Session Audit (8 hours)
+- Morning: Add comprehensive session logging
+- Afternoon: Analyze current session flow and identify issues
 
-**Total Estimated Time**: 6-10 hours
+### Day 2: API Testing (8 hours)
+- Morning: Direct API testing with manual tools
+- Afternoon: Context format experimentation
 
-## Next Immediate Actions
+### Day 3: Client Fixes (8 hours)
+- Morning: Fix session management in ElevenLabsChatClient
+- Afternoon: Fix ProperDurinClient session handling
 
-1. ✅ Create enhanced logging version of chat_cli.py
-2. ✅ Test with simple "Hello" audio input
-3. ✅ Verify ElevenLabs agent configuration
-4. ✅ Add comprehensive error handling
-5. ✅ Create test scripts for isolated component testing
+### Day 4: Protocol Comparison (8 hours)
+- Morning: WebSocket session testing
+- Afternoon: HTTP vs WebSocket comparison
+
+### Day 5: Optimization & Testing (8 hours)
+- Morning: Context optimization and final fixes
+- Afternoon: Comprehensive testing and validation
+
+## Expected Outcome
+A fully functional conversation system where:
+- ✅ Single session maintained throughout entire conversation
+- ✅ Agent shows contextual awareness and memory
+- ✅ Natural back-and-forth dialogue without repetition
+- ✅ Proper customs classification workflow with continuity
+- ✅ Robust session management handles edge cases
+- ✅ Clear logging shows session lifecycle for debugging
+
+## Immediate Next Actions (Today)
+1. **Create session_tracer.py** to log all session activity
+2. **Add session ID logging** to every API call in existing code
+3. **Run multi-turn test** with current implementation to baseline the issue
+4. **Document exact session flow** with timestamps and session IDs
+5. **Identify the line of code** where new sessions are incorrectly created

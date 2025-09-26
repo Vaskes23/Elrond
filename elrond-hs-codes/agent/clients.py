@@ -10,6 +10,17 @@ import logging
 from datetime import datetime
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, List, Tuple
+import sys
+from pathlib import Path
+
+# Import session tracer
+sys.path.insert(0, str(Path(__file__).parent.parent))
+try:
+    from session_tracer import get_tracer, trace_session_creation, trace_session_reuse, trace_api_call, trace_conversation_history
+    TRACER_AVAILABLE = True
+except ImportError:
+    print("Session tracer not available - running without session tracking")
+    TRACER_AVAILABLE = False
 
 # Configure logging
 logging.basicConfig(
@@ -89,8 +100,30 @@ class ElevenLabsChatClient(ChatBackend):
         self._conversation_history: List[Dict[str, str]] = []
 
     def start_session(self) -> str:
-        self._conversation_history = []
-        return f"elevenlabs-session-{len(self._conversation_history)}"
+        # Only reset conversation history if this is truly a new session
+        # Generate unique session ID using timestamp
+        import time
+        session_timestamp = int(time.time() * 1000)  # milliseconds since epoch
+        session_id = f"elevenlabs-session-{session_timestamp}"
+
+        # Only reset history if we're starting fresh (no existing history)
+        if not hasattr(self, '_current_session_id') or self._current_session_id is None:
+            self._conversation_history = []
+            self._current_session_id = session_id
+        else:
+            # Reusing existing session - don't reset history
+            session_id = self._current_session_id
+
+        # Trace session creation
+        if TRACER_AVAILABLE:
+            trace_session_creation(session_id, {
+                "conversation_history_length": len(self._conversation_history),
+                "agent_id": self.agent_id,
+                "base_url": self.base_url
+            })
+
+        logger.info(f"[SESSION] Created session: {session_id} (history length: {len(self._conversation_history)})")
+        return session_id
 
     def _post_json(self, url: str, json_body: Dict[str, Any]) -> Any:
         headers = {
@@ -114,31 +147,53 @@ class ElevenLabsChatClient(ChatBackend):
             return resp.text
 
     def send(self, session_id: str, message: ChatMessage) -> ChatMessage:
+        # Trace session reuse
+        if TRACER_AVAILABLE:
+            trace_session_reuse(session_id, message.content)
+
+        logger.info(f"[SESSION] Using session: {session_id} for message: {message.content[:50]}...")
+        logger.info(f"[SESSION] Conversation history before: {len(self._conversation_history)} turns")
+
         # Add user message to conversation history
         self._conversation_history.append({
             "role": "user",
             "content": message.content
         })
 
+        # Log conversation history state
+        if TRACER_AVAILABLE:
+            trace_conversation_history(session_id, self._conversation_history)
+
+        logger.info(f"[SESSION] Conversation history after adding user message: {len(self._conversation_history)} turns")
+
         # Use the simulate conversation endpoint
         url = f"{self.base_url}/v1/convai/agents/{self.agent_id}/simulate-conversation"
 
         # Create conversation context with history, but format it properly for the API
         # The API expects the conversation history to be in a specific format
+        conversation_context = " ".join([
+            f"{'User' if turn['role'] == 'user' else 'Agent'}: {turn['content']}"
+            for turn in self._conversation_history[:-1]  # Exclude the current message
+        ]) if len(self._conversation_history) > 1 else ""
+
         payload = {
             "simulation_specification": {
                 "simulated_user_config": {
                     # Send the latest user message as the context
                     "user_message": message.content,
                     # Include conversation context if there's history
-                    "conversation_context": " ".join([
-                        f"{'User' if turn['role'] == 'user' else 'Agent'}: {turn['content']}"
-                        for turn in self._conversation_history[:-1]  # Exclude the current message
-                    ]) if len(self._conversation_history) > 1 else ""
+                    "conversation_context": conversation_context
                 }
             },
             "new_turns_limit": 1  # Only generate one new turn from the agent
         }
+
+        logger.info(f"[SESSION] Context length being sent: {len(conversation_context)} chars")
+        logger.info(f"[SESSION] Context preview: {conversation_context[:200]}...")
+
+        # Trace API call
+        if TRACER_AVAILABLE:
+            trace_api_call(session_id, payload)
 
         try:
             data = self._post_json(url, payload)
